@@ -1,0 +1,12 @@
+﻿using USSDMiddleware.Core.Models.Bills;
+
+namespace USSDMiddleware.Core.Interfaces.Providers
+{
+    public interface ICyberPayProvider
+    {
+        Task<CategoriesResponse> GetCategories(string categoryType);
+        Task<BillersResponse> GetBillers(string categoryId);
+        Task<PaymentItemsResponse> GetPaymentItems(string billerId);
+        Task<VendResponse> Vend(VendRequest requestModel);
+    }
+}
