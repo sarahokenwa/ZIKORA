@@ -10,7 +10,7 @@ namespace USSDMiddleware.Api.Controllers
 {
     [Route("api/v1/account")]
     [ApiController]
-   // [Authorize]
+    [Authorize]
     public class AccountController : ControllerBase
     {
         private readonly IAccountManager _accountManager;

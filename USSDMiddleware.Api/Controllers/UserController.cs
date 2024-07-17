@@ -10,7 +10,7 @@ namespace USSDMiddleware.Api.Controllers
 {
     [Route("api/v1/user")]
     [ApiController]
-    //[Authorize]
+    [Authorize]
     public class UserController : ControllerBase
     {
 
