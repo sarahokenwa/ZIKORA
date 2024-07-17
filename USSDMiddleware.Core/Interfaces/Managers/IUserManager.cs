@@ -6,5 +6,6 @@ namespace USSDMiddleware.Core.Interfaces.Managers
     public interface IUserManager
     {
         Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request);
+        Task<CreateUserResponse> CreateUser(CreateUserRequest request);
     }
 }

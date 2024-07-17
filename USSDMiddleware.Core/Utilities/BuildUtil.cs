@@ -10,8 +10,8 @@ public class BuildUtil
     {
         var accountName = $"{validationLog.LastName}{validationLog.FirstName}";
         return Builder<AccountCreationRequest>.CreateNew()
-            .With(a => a.AccountOpeningTrackingRef = "")
-            .With(a => a.TransactionTrackingRef = "")
+            .With(a => a.AccountOpeningTrackingRef = Guid.NewGuid().ToString())
+            .With(a => a.TransactionTrackingRef = Guid.NewGuid().ToString())
             .With(a => a.ProductCode = "")
             .With(a => a.LastName = validationLog.LastName)
             .With(a => a.OtherNames = validationLog.OtherNames)
@@ -22,7 +22,7 @@ public class BuildUtil
             .With(a => a.DateOfBirth = validationLog.Dob)
             .With(a => a.AccountOfficerCode = "")
             .With(a => a.Email = "")
-            .With(a => a.AccountTier = "")
+            .With(a => a.AccountTier = "1")
             .Build();
     }
 }

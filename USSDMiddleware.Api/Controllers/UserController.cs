@@ -10,7 +10,7 @@ namespace USSDMiddleware.Api.Controllers
 {
     [Route("api/v1/user")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class UserController : ControllerBase
     {
 
@@ -20,6 +20,19 @@ namespace USSDMiddleware.Api.Controllers
         {
             _userManager = userManager;
 
+        }
+        
+        [HttpPost("create")]
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+        {
+            var result = await _userManager.CreateUser(request);
+
+            return Ok(new Response<CreateUserResponse>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = result
+            });
         }
 
         [HttpPost("validate-phone")]

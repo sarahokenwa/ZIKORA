@@ -6,4 +6,5 @@ namespace USSDMiddleware.Core.Interfaces.Repositories;
 public interface IValidationLogRepository
 {
     Task<Optional<ValidationLog>> GetByValidationReference(string validationReference);
+    Task<ValidationLog> CreateValidationLog(ValidationLog validationLog);
 }
