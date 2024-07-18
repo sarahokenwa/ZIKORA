@@ -29,8 +29,8 @@ namespace USSDMiddleware.Core.Managers
             IMapper mapper,
             ILogger<AccountManager> log,
             IValidationLogRepository validationLogRepository,
-            IProviderManager providerManager) 
-        { 
+            IProviderManager providerManager)
+        {
             _providerSelector = providerSelector;
             _userRepository = userRepository;
             _mapper = mapper;
@@ -43,15 +43,15 @@ namespace USSDMiddleware.Core.Managers
         {
             try
             {
-                var provider =  _providerSelector.GetProvider(request.provider);
+                var provider = _providerSelector.GetProvider(request.provider);
                 var providerId = await provider.GetProviderId(_providerManager);
-                
+
                 //Get information from validation reference passed
                 var validationLog =
                     (await _validationLogRepository.GetByValidationReference(request.ValidationReference))
                     .OrElseThrow(() =>
                         new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Validation reference is invalid!"));
-                
+
                 //Check if this user is already registered for USSD
                 var user = await _userRepository.GetByPhoneNumber(validationLog.PhoneNumber, providerId);
                 if (user.HasValue)
@@ -68,24 +68,24 @@ namespace USSDMiddleware.Core.Managers
                     .With(u => u.ProviderId = providerId)
                     .With(u => u.CustomerName = response.FullName)
                     .With(u => u.PhoneNumber = validationLog.PhoneNumber)
-                    .With(u => u.TransactionPin = request.TransactionPin) 
+                    .With(u => u.TransactionPin = request.TransactionPin)
                     .With(u => u.DateOfBirth = validationLog.Dob)
                     .With(u => u.BankVerificationNumber = validationLog.Bvn)
+                      .With(u => u.Address = "NA")
                     .Build());
-                 
+
                 return new CreateAccountResponse(request.ValidationReference, validationLog.PhoneNumber, createdUser.Id);
             }
             catch (Exception ex)
             {
                 _log.LogError(ex, "An error occurred while trying to creating account");
-                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED,"Account creation failed.");
+                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Account creation failed.");
             }
         }
     }
 }
 
-   
 
 
 
-    
+

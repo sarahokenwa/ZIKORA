@@ -48,14 +48,16 @@ namespace USSDMiddleware.Core.Managers
             
             var serviceRsp = await provider.GetUserByPhoneNumber(request.PhoneNumber);
             var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
-                .With(u => u.PhoneNumber = serviceRsp.PhoneNumber)
+                .With(u => u.PhoneNumber = request.PhoneNumber)
                 .With(u => u.Address = serviceRsp.Address)
                 .With(u => u.Email = serviceRsp.Email)
                 .With(u => u.CustomerId = serviceRsp.CustomerID)
                 .With(u => u.CustomerName = $"{serviceRsp.LastName}{serviceRsp.OtherNames}")
-                .With(u => u.TransactionPin = "")
+                .With(u => u.TransactionPin = request.TransactionPin)
                 .With(u => u.ProviderId = providerId)
                 .With(u => u.BankVerificationNumber = serviceRsp.BankVerificationNumber)
+                .With(u => u.Address = "NA")
+                
                 .Build());
 
             return Builder<CreateUserResponse>.CreateNew()

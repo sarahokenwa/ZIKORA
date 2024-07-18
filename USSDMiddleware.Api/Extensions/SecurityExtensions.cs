@@ -29,7 +29,8 @@ namespace USSDMiddleware.Api.Extensions
                 }));
 
             var host = Configuration.GetValue<string>("Identity:Authority");
-            var idoptions = Configuration.GetSection("Identity").Get<IdentityOptions>();
+           // var idoptions = Configuration.GetSection("Identity").Get<IdentityOptions>();
+            services.AddSingleton(Configuration.GetSection("Identity").Get<IdentityOptions>());
 
             services.AddScoped<SecurityService>();
 
