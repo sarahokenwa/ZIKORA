@@ -5,12 +5,13 @@ using Newtonsoft.Json.Linq;
 using USSDMiddleware.Core.Enums;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.Component;
+using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Providers;
 using USSDMiddleware.Core.Models;
 using USSDMiddleware.Core.Models.Providers.Zikora;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
-using USSDMiddleware.Core.Utilities;
+using USSDMiddleware.Infrastructure.Entities;
 
 namespace USSDMiddleware.Infrastructure.Providers
 {
@@ -35,9 +36,9 @@ namespace USSDMiddleware.Infrastructure.Providers
         {
             try
             {
-                var url = $"{BuildUrl(RequestType.PhoneValidation)}&phoneNumber={request.PhoneNumber}";
-                var serviceRsp = await _httpService.Get(url, BuildHeader());
-                if (serviceRsp is { HasValue: true, Value: "true" })
+                string url =  $"{BuildUrl("/BankOneWebAPI/api/Customer/PhoneNumberExist/2")}&phoneNumber={request.PhoneNumber}";
+                var boolRsp = await _httpService.Get<bool>(url, BuildHeader());
+                if (boolRsp.Equals(true))
                 {
                     return new PhoneValidationResponse(false, true, "Phone number exists!");
                 }
@@ -49,34 +50,65 @@ namespace USSDMiddleware.Infrastructure.Providers
 
             return new PhoneValidationResponse(false, false, "Phone number does not exist!");
         }
+        
+        public async Task<GetUserByPhoneNumberResponse> GetUserByPhoneNumber(string phoneNumber)
+        {
+            try
+            {
+                var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByCustomerPhoneNumber/2")}&phoneNumber={phoneNumber}";
+                var users = await _httpService.Get<ZikoraGetUserByPhoneNumberResponse[]>(url, BuildHeader());
+
+                if (users == null || users.Length == 0)
+                {
+                    _log.LogError("No customer found in the response");
+                    throw new NotFoundException("Failed to retrieve user.");
+                }
+
+                var user = users[0];
+                return Builder<GetUserByPhoneNumberResponse>.CreateNew()
+                    .With(g => g.PhoneNumber = user.PhoneNumber)
+                    .With(g => g.Address = user.Address)
+                    .With(g => g.Email = user.Email)
+                    .With(g => g.CustomerID = user.CustomerID)
+                    .With(g => g.LastName = user.LastName)
+                    .With(g => g.OtherNames = user.OtherNames)
+                    .With(g => g.BankVerificationNumber = user.BankVerificationNumber)
+                    .With(g => g.DateOfBirth = user.DateOfBirth)
+                    .Build();
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while processing accounts retrieval");
+                throw new NotSuccessfulException("Failed to retrieve users.");
+            }
+        }
+
+ 
+        
+        
+        
+        
+        
+        
 
 
         public async Task<AccountCreationResponse> CreateAccount(AccountCreationRequest req)
         {
             try
             {
-                var jsonContent = JsonConvert.SerializeObject(req);
-                var serviceResponse =
-                    await _httpService.Post(BuildUrl(RequestType.CreateAccount), BuildHeader(), jsonContent);
-
-                if (serviceResponse.HasValue)
+                var url = BuildUrl($"/BankOneWebAPI/api/Account/CreateAccountQuick/2");
+                var rsp = await _httpService.Post<JObject>(url, BuildHeader(), JsonConvert.SerializeObject(req));
+                var isSuccess = rsp["IsSuccessful"]!.Value<bool>();
+                if (!isSuccess)
                 {
-                    var rsp = JsonConvert.DeserializeObject<JObject>(serviceResponse.Value);
-                    if (rsp != null)
-                    {
-                        var isSuccess = rsp["IsSuccessful"]!.Value<bool>();
-                        if (!isSuccess)
-                        {
-                            throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED,
-                                rsp["Message"]!.Value<string>());
-                        }
+                    throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED,
+                        rsp["Message"]!.Value<string>());
+                }
 
-                        var messageToken = rsp["Message"];
-                        if (messageToken != null)
-                        {
-                            return BuildSuccessfulAccountResponse(messageToken);
-                        }
-                    }
+                var messageToken = rsp["Message"];
+                if (messageToken != null)
+                {
+                    return BuildSuccessfulAccountResponse(messageToken);
                 }
             }
             catch (Exception ex)
@@ -95,49 +127,402 @@ namespace USSDMiddleware.Infrastructure.Providers
                 { "BVN", bvn },
                 { "Token", _apiOptions.Zikora.Token }
             };
-
-            var url = $"{_apiOptions.Zikora.BaseUrl}/Account/BVN/GetBVNDetails";
+            
             var jsonContent = JsonConvert.SerializeObject(request);
-            var serviceRsp = await _httpService.Post(url, BuildHeader(), jsonContent);
-            if (serviceRsp.HasValue)
+            var bvnInfoResponse = await _httpService.Post<BvnInfoResponse>(BuildUrl("/Account/BVN/GetBVNDetails"), BuildHeader(), jsonContent);
+            if (!bvnInfoResponse.isBvnValid)
             {
-                var bvnInfoResponse = JsonConvert.DeserializeObject<BvnInfoResponse>(serviceRsp.Value)!;
-                if (!bvnInfoResponse.isBvnValid)
-                {
-                    throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Bvn is invalid");
-                }
+                throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Bvn is invalid");
+            }
 
-                if (!bvnInfoResponse.bvnDetails.phoneNumber.Equals(phoneNo))
-                {
-                    throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST,
-                        "Bvn does not belong to this phone number!");
-                }
+            if (!bvnInfoResponse.bvnDetails.phoneNumber.Equals(phoneNo))
+            {
+                throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST,
+                    "Bvn does not belong to this phone number!");
             }
 
             throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED,
                 "An unable to validate your bvn at the moment, try again later!");
         }
 
+        public async Task<string> GetProviderId(IProviderManager providerManager)
+        {
+            var provider = await providerManager.GetProviderByName(Core.Enums.Providers.ZIKORA.ToString());
+            return provider.Id;
+        }
+
+        public async Task<BalanceEnquiryResponse> CheckAccountBalance(BalanceEnquiryRequest model)
+        {
+            var computeWithDrawableBalance = true;
+            var url = $"{BuildUrl("/BankOneWebAPI/api/Account/GetAccountByAccountNumber/2")}&accountNumber={model.AccountNumber}" +
+                      $"&computeWithDrawableBalance={computeWithDrawableBalance}&provider={Core.Enums.Providers.ZIKORA}";
+            try
+            {
+                var serviceRsp = await _httpService.Get<ZikoraBalanceEnquiryResponse>(url, BuildHeader());
+                return Builder<BalanceEnquiryResponse>.CreateNew()
+                    .With(b => b.AvailableBalance = serviceRsp.AvailableBalance)
+                    .With(b => b.LedgerBalance = serviceRsp.LedgerBalance)
+                    .With(b => b.WithdrawableBalance = serviceRsp.WithdrawableBalance)
+                    .With(b => b.AccountType = serviceRsp.AccountType)
+                    .Build();
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while checking account balance");
+                throw new NotSuccessfulException("Failed to retrieve account balance");
+            }
+        }
+        
+        public async Task<List<GetAccountResponse>> GetAccountsByPhoneNumber(string phoneNumber)
+        {
+            try
+            {
+                var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByCustomerPhoneNumber/2")}&&phoneNumber={phoneNumber}";
+                var serviceRsp = await _httpService.Get<JArray>(url, BuildHeader());
+
+                if (serviceRsp == null || serviceRsp.Count == 0)
+                {
+                    _log.LogError("No accounts found in the response");
+                    throw new NotSuccessfulException("Failed to retrieve accounts.");
+                }
+
+                var accounts = serviceRsp.SelectMany(customer => customer["Accounts"])
+                    .Select(account => new GetAccountResponse
+                    {
+                        AccountNumber = account["AccountNumber"]?.ToString(),
+                        AccountType = account["AccountType"]?.ToString(),
+                        AccountStatus = account["AccountStatus"]?.ToString(),
+                        AccessLevel = account["AccessLevel"]?.ToString()
+                    })
+                    .ToList();
+                
+                return accounts;
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while processing accounts retrieval");
+                throw new NotSuccessfulException("Failed to retrieve accounts.");
+            }
+        }
+
+
+       /** public async Task<DebitCustomerAccountResponse> DebitCustomerAccount(DebitCustomerAccountRequest model)
+        {
+            try
+            {
+                var authenticationToken = _apiOptions.Zikora.Token;
+                var debitUrl = $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/CoreTransactions/Debit";
+                var statusQueryUrl =
+                    $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/CoreTransactions/TransactionStatusQuery";
+
+                var headers = BuildHeader();
+
+                var debitPayload = new
+                {
+                    model.RetrievalReference,
+                    model.AccountNumber,
+                    model.Amount,
+                    model.Fee,
+                    model.Narration,
+                    model.GLCode,
+                    model.NibssCode,
+                    token = authenticationToken,
+                };
+
+                var jsonContent = JsonConvert.SerializeObject(debitPayload);
+                var debitResponseContent = await _httpService.Post(debitUrl, headers, jsonContent);
+
+                if (!string.IsNullOrEmpty(debitResponseContent))
+                {
+                    var debitResponseJson = JsonConvert.DeserializeObject<JObject>(debitResponseContent);
+                    _log.LogInformation($"Debit response content: {debitResponseJson}");
+
+                    var debitResult = new DebitCustomerAccountResponse
+                    {
+                        IsSuccessful = debitResponseJson["IsSuccessful"].Value<bool>(),
+                        ResponseMessage = debitResponseJson["ResponseMessage"]?.ToString(),
+                        ResponseCode = debitResponseJson["ResponseCode"]?.ToString(),
+                        Reference = debitResponseJson["Reference"]?.ToString()
+                    };
+
+                    _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
+
+                    if (!debitResult.IsSuccessful)
+                    {
+                        _log.LogError("Debit was not successful.");
+                        throw new NotSuccessfulException("Failed to debit customer account.");
+                    }
+
+                    var statusQueryPayload = new
+                    {
+                        RetrievalReference = model.RetrievalReference,
+                        TransactionDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                        TransactionType = "DEBIT",
+                        model.Amount,
+                        token = authenticationToken,
+                    };
+
+                    var statusQueryJsonContent = JsonConvert.SerializeObject(statusQueryPayload);
+
+                    _log.LogInformation($"Status query payload: {statusQueryJsonContent}");
+
+                    var statusQueryResponseContent =
+                        await _httpService.Post(statusQueryUrl, headers, statusQueryJsonContent);
+
+                    if (!string.IsNullOrEmpty(statusQueryResponseContent))
+                    {
+                        var statusQueryResponseJson =
+                            JsonConvert.DeserializeObject<JObject>(statusQueryResponseContent);
+                        _log.LogInformation($"Status query response content: {statusQueryResponseJson}");
+
+                        var statusQueryResult = new DebitCustomerAccountResponse
+                        {
+                            IsSuccessful = statusQueryResponseJson["IsSuccessful"].Value<bool>(),
+                            ResponseMessage = statusQueryResponseJson["ResponseMessage"]?.ToString(),
+                            ResponseCode = statusQueryResponseJson["ResponseCode"]?.ToString(),
+                            Reference = debitResponseJson["Reference"]?.ToString(),
+                        };
+
+                        return statusQueryResult;
+                    }
+                    else
+                    {
+                        _log.LogError("Failed to query transaction status.");
+                        throw new NotSuccessfulException("Failed to query transaction status.");
+                    }
+                }
+                else
+                {
+                    _log.LogError("Failed to debit customer account.");
+                    throw new NotSuccessfulException("Failed to debit customer account.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while debiting customer account.");
+                throw new NotSuccessfulException("Failed to debit customer account.");
+            }
+        }
+
+        public async Task<IntraBankTransferResponse> IntraBankTransfer(IntraBankTransferRequest model)
+        {
+            try
+            {
+                var authenticationKey = _apiOptions.Zikora.Token;
+
+                var transferUrl =
+                    $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/CoreTransactions/LocalFundsTransfer";
+                var statusQueryUrl =
+                    $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/CoreTransactions/TransactionStatusQuery";
+
+                var headers = BuildHeader();
+
+                var transferPayload = new
+                {
+                    model.FromAccountNumber,
+                    model.ToAccountNumber,
+                    model.Fee,
+                    model.RetrievalReference,
+                    model.Narration,
+                    model.Amount,
+                    AuthenticationKey = authenticationKey
+                };
+
+                var jsonContent = JsonConvert.SerializeObject(transferPayload);
+
+                var transferResponseContent = await _httpService.Post(transferUrl, headers, jsonContent);
+
+                if (!string.IsNullOrEmpty(transferResponseContent))
+                {
+                    var transferResponseJson = JsonConvert.DeserializeObject<JObject>(transferResponseContent);
+                    _log.LogInformation($"Transfer response content: {transferResponseJson}");
+
+                    var transferResult = new IntraBankTransferResponse
+                    {
+                        IsSuccessful = transferResponseJson["IsSuccessful"].Value<bool>(),
+                        ResponseMessage = transferResponseJson["ResponseMessage"]?.ToString(),
+                        ResponseCode = transferResponseJson["ResponseCode"]?.ToString(),
+                        Reference = transferResponseJson["Reference"]?.ToString()
+                    };
+
+                    if (!transferResult.IsSuccessful)
+                    {
+                        _log.LogError("Transfer was not successful.");
+                        throw new NotSuccessfulException("Failed to perform intra-bank transfer.");
+                    }
+
+                    var statusQueryPayload = new
+                    {
+                        RetrievalReference = model.RetrievalReference,
+                        TransactionDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                        TransactionType = "CREDIT",
+                        model.Amount,
+                        token = authenticationKey,
+                    };
+
+                    var statusQueryJsonContent = JsonConvert.SerializeObject(statusQueryPayload);
+
+                    var statusQueryResponseContent =
+                        await _httpService.Post(statusQueryUrl, headers, statusQueryJsonContent);
+
+                    if (!string.IsNullOrEmpty(statusQueryResponseContent))
+                    {
+                        var statusQueryResponseJson =
+                            JsonConvert.DeserializeObject<JObject>(statusQueryResponseContent);
+                        _log.LogInformation($"Status query response content: {statusQueryResponseJson}");
+
+                        var statusQueryResult = new IntraBankTransferResponse
+                        {
+                            IsSuccessful = statusQueryResponseJson["IsSuccessful"].Value<bool>(),
+                            ResponseMessage = statusQueryResponseJson["ResponseMessage"]?.ToString(),
+                            ResponseCode = statusQueryResponseJson["ResponseCode"]?.ToString(),
+                            Reference = transferResponseJson["Reference"]?.ToString()
+                        };
+
+                        return statusQueryResult;
+                    }
+                    else
+                    {
+                        _log.LogError("Failed to query transaction status.");
+                        throw new NotSuccessfulException("Failed to query transaction status.");
+                    }
+                }
+                else
+                {
+                    _log.LogError("Failed to perform intra-bank transfer.");
+                    throw new NotSuccessfulException("Failed to perform intra-bank transfer.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while performing intra-bank transfer.");
+                throw new NotSuccessfulException("Failed to perform intra-bank transfer.");
+            }
+        }
+
+         public async Task<FreezeAccountResponse> FreezeAccount(FreezeAccountRequest model)
+         {
+             try
+             {
+                 var authenticationCode = _apiOptions.Zikora.Token;
+
+                 var url = $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/Account/ActivatePND";
+
+                 var headers = BuildHeader();
+
+                 var freezeAccountPayload = new
+                 {
+                     model.AccountNo,
+                     AuthenticationCode = authenticationCode,
+                 };
+
+                 var jsonContent = JsonConvert.SerializeObject(freezeAccountPayload);
+
+                 var responseContent = await _httpService.Post(url, headers, jsonContent);
+
+                 if (!string.IsNullOrEmpty(responseContent))
+                 {
+                     var responseJson = JsonConvert.DeserializeObject<JObject>(responseContent);
+                     _log.LogInformation($"Response content: {responseContent}");
+
+                     var blockAccount = new FreezeAccountResponse
+                     {
+                         RequestStatus = responseJson["RequestStatus"].Value<bool>(),
+                         ResponseDescription = responseJson["ResponseDescription"]?.ToString(),
+                         ResponseStatus = responseJson["ResponseStatus"]?.ToString(),
+                     };
+
+                     if (!blockAccount.RequestStatus)
+                     {
+                         _log.LogError("The attempt to freeze the account was not successful.");
+                         throw new NotSuccessfulException("Failed to freeze account.");
+                     }
+
+                     return blockAccount;
+                 }
+
+                 else
+                 {
+                     _log.LogError("The attempt to freeze the account was not successful.");
+                     throw new NotSuccessfulException("Failed to freeze account.");
+                 }
+             }
+             catch (Exception ex)
+             {
+                 _log.LogError(ex, "An error occurred while freezing account");
+                 throw new NotSuccessfulException("Failed to freeze account.");
+             }
+         }
+
+          public async Task<GetCustomerCardResponse> GetCustomerCards(GetCustomerCardRequest request)
+          {
+              try
+              {
+                  var token = _apiOptions.Zikora.Token;
+                  var includeInactiveCards = false;
+                  var url = $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/Cards/RetrieveCustomerCards";
+
+                  var headers = BuildHeader();
+
+                  var customerCardsPayload = new
+                  {
+                      request.AccountNo,
+                      Token = token,
+                      IncludeInactiveCards = includeInactiveCards
+                  };
+
+                  var jsonContent = JsonConvert.SerializeObject(customerCardsPayload);
+
+                  var responseContent = await _httpService.Post(url, headers, jsonContent);
+
+                  if (!string.IsNullOrEmpty(responseContent))
+                  {
+                      var responseJson = JsonConvert.DeserializeObject<JObject>(responseContent);
+                      _log.LogInformation($"Response content: {responseContent}");
+
+                      var cardResponse = new GetCustomerCardResponse
+                      {
+                          isSuccessful = responseJson["isSuccessful"].Value<bool>(),
+                          ResponseDescription = responseJson["ResponseDescription"]?.ToString(),
+                          Cards = responseJson["Cards"]?.ToObject<List<CardModel>>(),
+                      };
+
+                      if (!cardResponse.isSuccessful)
+                      {
+                          _log.LogError("The attempt to retrieve cards was not successful.");
+                          throw new NotSuccessfulException("Failed to retrieve card.");
+                      }
+
+                      return cardResponse;
+                  }
+                  else
+                  {
+                      _log.LogError("The attempt to retrieve cards was not successful.");
+                      throw new NotSuccessfulException("Failed to retrieve cards.");
+                  }
+              }
+              catch (Exception ex)
+              {
+                  _log.LogError(ex, "An error occurred while retreiving cards.");
+                  throw new NotSuccessfulException("Failed to retrieve cards.");
+              }
+          }
+          **/
 
         
-        private IDictionary<string, string> BuildHeader()
+        
+        
+        private IDictionary<string, string>? BuildHeader()
         {
             return null!;
         }
 
 
-        private string BuildUrl(RequestType requestType)
+        private string BuildUrl(String url)
         {
             var token = _apiOptions.Zikora.Token;
             var baseUrl = _apiOptions.Zikora.BaseUrl;
-            switch (requestType)
-            {
-                case RequestType.PhoneValidation:
-                    return $"{baseUrl}/BankOneWebAPI/api/Customer/PhoneNumberExist/2?authToken={token}";
-                case RequestType.CreateAccount:
-                    return $"{baseUrl}/api/Account/CreateAccountQuick/2?authToken={token}";
-                default: return "";
-            }
+            return $"{baseUrl}/{url}?authToken={token}";
         }
 
         private static AccountCreationResponse BuildSuccessfulAccountResponse(JToken messageToken)

@@ -25,7 +25,7 @@ namespace USSDMiddleware.Api.Controllers
         {
             var result = await _accountManager.CreateAccount(request);
 
-            return Ok(new Response<AccountCreationResponse>()
+            return Ok(new Response<CreateAccountResponse>()
             {
                 Code = ResponseCodes.Successful,
                 Succeeded = true,

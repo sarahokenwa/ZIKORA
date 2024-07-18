@@ -21,6 +21,19 @@ namespace USSDMiddleware.Api.Controllers
             _userManager = userManager;
 
         }
+        
+        [HttpPost("create")]
+        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+        {
+            var result = await _userManager.CreateUser(request);
+
+            return Ok(new Response<CreateUserResponse>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = result
+            });
+        }
 
         [HttpPost("validate-phone")]
         public async Task<IActionResult> ValidatePhone([FromBody] PhoneValidationRequest request)

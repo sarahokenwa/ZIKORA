@@ -3,6 +3,7 @@ using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Providers;
 using USSDMiddleware.Core.Interfaces.Repositories;
 using USSDMiddleware.Core.Models.Bills;
+using USSDMiddleware.Core.Services;
 
 namespace USSDMiddleware.Core.Managers
 {
@@ -10,12 +11,15 @@ namespace USSDMiddleware.Core.Managers
     {
         private readonly IUserRepository _userRepository;
         private readonly ICyberPayProvider _cyberPayProvider;
+        private readonly UssdProviderSelector _providerSelector;
         private readonly ILogger<BillsManager> _log;
 
-        public BillsManager(IUserRepository userRepository, ICyberPayProvider cyberPayProvider, ILogger<BillsManager> log)
+        public BillsManager(IUserRepository userRepository, ICyberPayProvider cyberPayProvider, ILogger<BillsManager> log,
+            UssdProviderSelector providerSelector)
         {
             _userRepository = userRepository;
             _cyberPayProvider = cyberPayProvider;
+            _providerSelector = providerSelector;
             _log = log;
         }
 
@@ -71,7 +75,8 @@ namespace USSDMiddleware.Core.Managers
                     ResponseCode = "96"
                 };
             }
-            var userDetail = await _userRepository.GetByPhoneNumber(requestModel.CustomerMobile);
+         
+            var userDetail = await _userRepository.GetByPhoneNumber(requestModel.CustomerMobile, "");
 
             if (userDetail == null)
             {

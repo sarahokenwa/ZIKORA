@@ -22,6 +22,8 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<IAccountManager, AccountManager>();
             services.AddScoped<IBvnManager, BvnManager>();
             services.AddScoped<IBillsManager, BillsManager>();
+            services.AddScoped<IProviderManager, ProviderManager>();
+            services.AddScoped<IValidationLogManager, ValidationLogManager>();
 
 
             //Repositories
@@ -32,6 +34,7 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<IAccountRepository, AccountRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IValidationLogRepository, ValidationLogRepository>();
+            services.AddScoped<IProviderRepository, ProviderRepository>();
 
             //Third party service
             #region service

@@ -4,6 +4,8 @@ using USSDMiddleware.Core.Interfaces.Repositories;
 using USSDMiddleware.Core.Services;
 using USSDMiddleware.Core.Interfaces.Managers;
 using FizzWare.NBuilder;
+using USSDMiddleware.Core.Entities;
+using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 
@@ -14,32 +16,72 @@ namespace USSDMiddleware.Core.Managers
     {
         private readonly IUserRepository _userRepository;
         private readonly UssdProviderSelector _providerSelector;
+        private readonly IProviderManager _providerManager;
 
         public UserManager(
             IUserRepository userRepository,
-            UssdProviderSelector providerSelector
+            UssdProviderSelector providerSelector,
+            IProviderManager providerManager
            )
 
         {
             _userRepository = userRepository;
             _providerSelector = providerSelector;
+            _providerManager = providerManager;
         }
 
+        public async Task<CreateUserResponse> CreateUser(CreateUserRequest request)
+        {
+            ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
+                .With(v => v.PhoneNumber = request.PhoneNumber)
+                .Build());
+            
+            var provider = _providerSelector.GetProvider(request.Provider);
+            var providerId = await provider.GetProviderId(_providerManager);
+            
+            var user = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
+            
+            if (user.HasValue)
+            {
+                throw new AlreadyExistException($"User with {request.PhoneNumber} already exist");
+            }
+            
+            var serviceRsp = await provider.GetUserByPhoneNumber(request.PhoneNumber);
+            var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
+                .With(u => u.PhoneNumber = serviceRsp.PhoneNumber)
+                .With(u => u.Address = serviceRsp.Address)
+                .With(u => u.Email = serviceRsp.Email)
+                .With(u => u.CustomerId = serviceRsp.CustomerID)
+                .With(u => u.CustomerName = $"{serviceRsp.LastName}{serviceRsp.OtherNames}")
+                .With(u => u.TransactionPin = "")
+                .With(u => u.ProviderId = providerId)
+                .With(u => u.BankVerificationNumber = serviceRsp.BankVerificationNumber)
+                .Build());
+
+            return Builder<CreateUserResponse>.CreateNew()
+                .With(c => c.userId = createdUser.Id)
+                .With(c => c.message = "Successful")
+                .Build();
+        }
+        
+        
+        
         public async Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request)
         {
             ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
                 .With(v => v.PhoneNumber = request.PhoneNumber)
                 .Build());
 
-            var user = await _userRepository.GetByPhoneNumber(request.PhoneNumber);
+            var provider = _providerSelector.GetProvider(request.Provider);
+            var providerId = await provider.GetProviderId(_providerManager);
+            var user = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
+           
             if (user.HasValue)
             {
                 return new PhoneValidationResponse(true, false, "Successful");
             }
 
-            var validator = _providerSelector.GetProvider(request.Provider);
-
-            return await validator.ValidatePhone(request);
+            return await provider.ValidatePhone(request);
         }
     }
 }

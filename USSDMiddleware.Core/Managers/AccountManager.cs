@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using FizzWare.NBuilder;
 using Microsoft.Extensions.Logging;
 using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Enums;
@@ -15,41 +16,64 @@ namespace USSDMiddleware.Core.Managers
     public class AccountManager : IAccountManager
     {
         private readonly UssdProviderSelector _providerSelector;
-        private readonly IAccountRepository _accountRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IValidationLogRepository _validationLogRepository;
+        private readonly IProviderManager _providerManager;
         private readonly IMapper _mapper;
         private readonly ILogger<AccountManager> _log;
 
 
         public AccountManager(
             UssdProviderSelector providerSelector,
-            IAccountRepository accountRepository,
+            IUserRepository userRepository,
             IMapper mapper,
             ILogger<AccountManager> log,
-            IValidationLogRepository validationLogRepository) 
+            IValidationLogRepository validationLogRepository,
+            IProviderManager providerManager) 
         { 
             _providerSelector = providerSelector;
-            _accountRepository = accountRepository;
+            _userRepository = userRepository;
             _mapper = mapper;
             _log = log;
             _validationLogRepository = validationLogRepository;
+            _providerManager = providerManager;
         }
 
-        public async Task<AccountCreationResponse> CreateAccount(CreateAccountRequest request)
+        public async Task<CreateAccountResponse> CreateAccount(CreateAccountRequest request)
         {
             try
             {
+                var provider =  _providerSelector.GetProvider(request.provider);
+                var providerId = await provider.GetProviderId(_providerManager);
+                
+                //Get information from validation reference passed
                 var validationLog =
                     (await _validationLogRepository.GetByValidationReference(request.ValidationReference))
                     .OrElseThrow(() =>
                         new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Validation reference is invalid!"));
+                
+                //Check if this user is already registered for USSD
+                var user = await _userRepository.GetByPhoneNumber(validationLog.PhoneNumber, providerId);
+                if (user.HasValue)
+                {
+                    throw new BadRequestException(
+                        $"A user has already exist for this reference {validationLog.ValidationReference}");
+                }
 
-                var response = await _providerSelector.GetProvider(request.provider)
-                    .CreateAccount(BuildUtil.BuildAccountCreationRequest(validationLog));
-             
-                var newAccount = _mapper.Map<Account>(response);
-                await _accountRepository.CreateNewAccount(newAccount);
-                return response;
+                var response = await provider.CreateAccount(BuildUtil.BuildAccountCreationRequest(validationLog));
+                var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
+                    .With(u => u.Address = "")
+                    .With(u => u.Email = "")
+                    .With(u => u.CustomerId = response.CustomerId)
+                    .With(u => u.ProviderId = providerId)
+                    .With(u => u.CustomerName = response.FullName)
+                    .With(u => u.PhoneNumber = validationLog.PhoneNumber)
+                    .With(u => u.TransactionPin = request.TransactionPin) 
+                    .With(u => u.DateOfBirth = validationLog.Dob)
+                    .With(u => u.BankVerificationNumber = validationLog.Bvn)
+                    .Build());
+                 
+                return new CreateAccountResponse(request.ValidationReference, validationLog.PhoneNumber, createdUser.Id);
             }
             catch (Exception ex)
             {

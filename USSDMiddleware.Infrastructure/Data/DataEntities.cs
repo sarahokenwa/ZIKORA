@@ -24,11 +24,6 @@ namespace USSDMiddleware.Infrastructure.Data
                     v => v == null ? null : v
                 );
 
-            modelBuilder.Entity<Account>()
-                .HasOne(a => a.User)
-                .WithMany(u => u.Accounts)
-                .HasForeignKey(a => a.UserId);
-
             base.OnModelCreating(modelBuilder);
         }
     }

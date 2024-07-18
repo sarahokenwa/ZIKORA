@@ -5,6 +5,6 @@ namespace USSDMiddleware.Core.Interfaces.Managers
 {
     public interface IAccountManager
     {
-        Task<AccountCreationResponse> CreateAccount(CreateAccountRequest newUser);
+        Task<CreateAccountResponse> CreateAccount(CreateAccountRequest newUser);
     }
 }
