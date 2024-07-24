@@ -127,9 +127,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                 { "BVN", bvn },
                 { "Token", _apiOptions.Zikora.Token }
             };
-            
+
             var jsonContent = JsonConvert.SerializeObject(request);
-            var bvnInfoResponse = await _httpService.Post<BvnInfoResponse>(BuildUrl("/Account/BVN/GetBVNDetails"), BuildHeader(), jsonContent);
+            var bvnInfoResponse = await _httpService.Post<BvnInfoResponse>(BuildUrl("thirdpartyapiservice/apiservice/Account/BVN/GetBVNDetails"), BuildHeader(), jsonContent);
             if (!bvnInfoResponse.isBvnValid)
             {
                 throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Bvn is invalid");
