@@ -33,7 +33,7 @@ public class BvnManager : IBvnManager
 
         if (!bvnInfoResponse.isBvnValid)
         {
-            return new GetBvnInfoResponse("", bvnInfoResponse.isBvnValid);
+            return new GetBvnInfoResponse("", bvnInfoResponse.isBvnValid, "");
         }
 
         var createdValidationLog = await _validationLogManager.CreateValidationLog(Builder<ValidationLog>.CreateNew()
@@ -46,7 +46,7 @@ public class BvnManager : IBvnManager
             .With(v => v.Valid = true)
             .Build());
 
-        return new GetBvnInfoResponse(createdValidationLog.Id, bvnInfoResponse.isBvnValid);
+        return new GetBvnInfoResponse(createdValidationLog.Id, bvnInfoResponse.isBvnValid, createdValidationLog.Dob);
     }
 
 }

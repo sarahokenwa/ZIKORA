@@ -7,5 +7,6 @@ namespace USSDMiddleware.Core.Interfaces.Managers
     {
         Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request);
         Task<CreateUserResponse> CreateUser(CreateUserRequest request);
+        Task<UserPhoneNumberDetails> GetUserByPhoneNumber(PhoneValidationRequest request);
     }
 }

@@ -47,5 +47,19 @@ namespace USSDMiddleware.Api.Controllers
                 Data = result
             });
         }
+
+
+        [HttpPost("validate-dob")]
+        public async Task<IActionResult> GetUserByPhoneNumber([FromBody] PhoneValidationRequest request)
+        {
+            var result = await _userManager.GetUserByPhoneNumber(request);
+
+            return Ok(new Response<UserPhoneNumberDetails>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = result
+            });
+        }
     }
 }

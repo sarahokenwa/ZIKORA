@@ -85,6 +85,30 @@ namespace USSDMiddleware.Core.Managers
 
             return await provider.ValidatePhone(request);
         }
+
+        public async Task<UserPhoneNumberDetails> GetUserByPhoneNumber(PhoneValidationRequest request)
+        {
+            ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
+                .With(v => v.PhoneNumber = request.PhoneNumber)
+                .Build());
+
+            var provider = _providerSelector.GetProvider(request.Provider);
+            var serviceRsp = await provider.GetUserByPhoneNumber(request.PhoneNumber);
+
+            if(serviceRsp != null)
+            {
+                return new UserPhoneNumberDetails
+                {
+                    DateOfBirth = serviceRsp.DateOfBirth,
+                    BankVerificationNumber = serviceRsp.BankVerificationNumber,
+                    Email = serviceRsp.Email,
+                    PhoneNumber = serviceRsp.PhoneNumber,
+                };
+
+            }
+            return new UserPhoneNumberDetails();
+
+        }
     }
 }
 
