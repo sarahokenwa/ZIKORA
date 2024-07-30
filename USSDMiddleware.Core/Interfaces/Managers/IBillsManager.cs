@@ -8,5 +8,6 @@ namespace USSDMiddleware.Core.Interfaces.Managers
         Task<BillersResponse> GetBillers(string categoryId);
         Task<PaymentItemsResponse> GetPaymentItems(string billerId);
         Task<VendResponse> Vend(ClientVendRequest requestModel);
+        Task<ValidateResponse> Validate(ValidateRequestModel requestModel);
     }
 }

@@ -13,14 +13,16 @@ namespace USSDMiddleware.Core.Managers
         private readonly ICyberPayProvider _cyberPayProvider;
         private readonly UssdProviderSelector _providerSelector;
         private readonly ILogger<BillsManager> _log;
+        private readonly IProviderManager _providerManager;
 
         public BillsManager(IUserRepository userRepository, ICyberPayProvider cyberPayProvider, ILogger<BillsManager> log,
-            UssdProviderSelector providerSelector)
+            UssdProviderSelector providerSelector, IProviderManager providerManager)
         {
             _userRepository = userRepository;
             _cyberPayProvider = cyberPayProvider;
             _providerSelector = providerSelector;
             _log = log;
+            _providerManager = providerManager;
         }
 
         public async Task<BillersResponse> GetBillers(string categoryId)
@@ -40,6 +42,9 @@ namespace USSDMiddleware.Core.Managers
 
         public async Task<VendResponse> Vend(ClientVendRequest requestModel)
         {
+            var provider = _providerSelector.GetProvider(requestModel.Provider);
+            var providerId = await provider.GetProviderId(_providerManager);
+
             if (string.IsNullOrEmpty(requestModel.CustomerMobile))
             {
                 return new VendResponse
@@ -76,7 +81,7 @@ namespace USSDMiddleware.Core.Managers
                 };
             }
          
-            var userDetail = await _userRepository.GetByPhoneNumber(requestModel.CustomerMobile, "");
+            var userDetail = await _userRepository.GetByPhoneNumber(requestModel.CustomerMobile, providerId);
 
             if (userDetail == null)
             {
@@ -92,9 +97,71 @@ namespace USSDMiddleware.Core.Managers
                 customerMobile = requestModel.CustomerMobile,
                 paymentCode = requestModel.PaymentCode,
                 amount = requestModel.Amount,
-                customerEmail = ""
-            };
+                customerEmail = "",
+                merchantRef = Guid.NewGuid().ToString(),
+                validationReference= requestModel.validationReference
+
+        };
             return await _cyberPayProvider.Vend(request);
         }
+
+
+
+        public async Task<ValidateResponse> Validate(ValidateRequestModel requestModel)
+        {
+            var provider = _providerSelector.GetProvider(requestModel.Provider);
+            var providerId = await provider.GetProviderId(_providerManager);
+
+
+            if (string.IsNullOrEmpty(requestModel.customerPhoneNumber))
+            {
+                return new ValidateResponse
+                {
+                    Message = "Customer mobile is required",
+                    succeeded = false
+                };
+            }
+
+            if (string.IsNullOrEmpty(requestModel.itemCode))
+            {
+                return new ValidateResponse
+                {
+                    Message = "Item code is required",
+                    succeeded = false
+                };
+            }
+
+            if (string.IsNullOrEmpty(requestModel.customerId))
+            {
+                return new ValidateResponse
+                {
+                    Message = "Customer ID is required",
+                    succeeded = false
+                };
+            }
+
+            var userDetail = await _userRepository.GetByPhoneNumber(requestModel.customerPhoneNumber, providerId);
+
+            if (userDetail == null)
+            {
+                return new ValidateResponse
+                {
+                    Message = "Request from an invalid customer mobile",
+                    succeeded = false
+                };
+            }
+
+            ValidateRequest request = new ValidateRequest
+            {
+                customerId= requestModel.customerId,
+            customerName= requestModel.customerName,
+            email= requestModel.customerEmail,
+            itemCode= requestModel.itemCode,
+            phone= requestModel.customerPhoneNumber,
+            phoneValidation= requestModel.shouldVerifyCustomer,
+            };
+            return await _cyberPayProvider.Validate(request);
+        }
+
     }
 }

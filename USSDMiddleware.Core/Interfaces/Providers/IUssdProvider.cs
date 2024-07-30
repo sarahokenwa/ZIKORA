@@ -15,5 +15,7 @@ namespace USSDMiddleware.Core.Interfaces.Providers
 
          Task<BvnInfoResponse> GetBvnInfo(string bvn, string phoneNo);
          Task<string > GetProviderId(IProviderManager providerManager);
+        Task<BalanceEnquiryResponse> CheckAccountBalance(BalanceEnquiryRequest model);
+        Task<List<GetAccountResponse>> GetAccountsByPhoneNumber(string phoneNumber);
     }
 }

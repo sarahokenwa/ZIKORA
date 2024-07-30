@@ -59,8 +59,9 @@ namespace USSDMiddleware.Core.Managers
                     throw new BadRequestException(
                         $"A user has already exist for this reference {validationLog.ValidationReference}");
                 }
-
-                var response = await provider.CreateAccount(BuildUtil.BuildAccountCreationRequest(validationLog));
+                var model = BuildUtil.BuildAccountCreationRequest(validationLog);
+                model.Email = request.Email; model.AccountOfficerCode = request.AccountOfficerCode;model.ProductCode = request.ProductCode; model.Gender = request.Gender;
+                var response = await provider.CreateAccount(model);
                 var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
                     .With(u => u.Address = "")
                     .With(u => u.Email = "")

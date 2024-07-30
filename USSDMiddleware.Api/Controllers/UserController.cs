@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Models;
+using USSDMiddleware.Core.Models.Accounts;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using static USSDMiddleware.Core.Constants;
@@ -55,6 +56,32 @@ namespace USSDMiddleware.Api.Controllers
             var result = await _userManager.GetUserByPhoneNumber(request);
 
             return Ok(new Response<UserPhoneNumberDetails>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = result
+            });
+        }
+
+        [HttpPost("accounts")]
+        public async Task<IActionResult> GetAccountsByPhoneNumber([FromBody] PhoneValidationRequest request)
+        {
+            var result = await _userManager.GetAccountsByPhoneNumber(request);
+
+            return Ok(new Response<List<UserAccountNumber>>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = result
+            });
+        }
+
+        [HttpPost("account-balance")]
+        public async Task<IActionResult> GetAccountBalance([FromBody] AccountRequest request)
+        {
+            var result = await _userManager.GetAccountBalance(request);
+
+            return Ok(new Response<AccountBalanceEnquiry>()
             {
                 Code = ResponseCodes.Successful,
                 Succeeded = true,

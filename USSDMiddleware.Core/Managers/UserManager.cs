@@ -8,7 +8,7 @@ using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
-
+using USSDMiddleware.Core.Models.Accounts;
 
 namespace USSDMiddleware.Core.Managers
 {
@@ -107,6 +107,48 @@ namespace USSDMiddleware.Core.Managers
 
             }
             return new UserPhoneNumberDetails();
+
+        }
+
+        public async Task<List<UserAccountNumber>> GetAccountsByPhoneNumber(PhoneValidationRequest request)
+        {
+            ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
+                .With(v => v.PhoneNumber = request.PhoneNumber)
+                .Build());
+
+            var provider = _providerSelector.GetProvider(request.Provider);
+            var serviceRsp = await provider.GetAccountsByPhoneNumber(request.PhoneNumber);
+
+            if (serviceRsp.Count > 0)
+            {
+               return serviceRsp.Select(x => new UserAccountNumber
+                {
+                    AccountNumber = x.AccountNumber
+                }).ToList();
+              
+
+            }
+            return new List<UserAccountNumber>();
+
+        }
+
+        public async Task<AccountBalanceEnquiry> GetAccountBalance(AccountRequest request)
+        {
+           
+
+            var provider = _providerSelector.GetProvider(request.Provider);
+            var serviceRsp = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber=request.AccountNumber});
+
+            if (serviceRsp !=null)
+            {
+                return new AccountBalanceEnquiry
+                {
+                    Balance = serviceRsp.WithdrawableBalance
+                };
+
+
+            }
+            return new AccountBalanceEnquiry();
 
         }
     }
