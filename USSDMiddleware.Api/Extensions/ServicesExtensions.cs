@@ -35,6 +35,7 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IValidationLogRepository, ValidationLogRepository>();
             services.AddScoped<IProviderRepository, ProviderRepository>();
+            services.AddScoped<IBillsRepository, BillsRepository>();
 
             //Third party service
             #region service

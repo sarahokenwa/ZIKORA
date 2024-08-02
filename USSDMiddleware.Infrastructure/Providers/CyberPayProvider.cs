@@ -88,13 +88,36 @@ namespace USSDMiddleware.Infrastructure.Providers
         {
             try
             {
+                requestModel.walletId = _apiOptions.Zikora.WalletId ;
                 var request = JsonConvert.SerializeObject(requestModel);
                 HttpContent httpContent = new StringContent(request, Encoding.UTF8, "application/json");
                 CyberPayPayoutAuthResponse authResponse = await GetClientCredentials();
                 string token = authResponse != null ? authResponse.access_token : string.Empty;
 
-                VendResponse transferResponse = await _httpService.Post<VendResponse>($"{_apiOptions.CyberPayBillUrl}/transfer", httpContent, token);
+                VendResponse transferResponse = await _httpService.Post<VendResponse>($"{_apiOptions.CyberPayBillUrl}/api/v1/vend", httpContent, token);
                 return transferResponse;
+            }
+            catch (Exception e)
+            {
+                _log.LogError(e, e.Message);
+            };
+
+            return null;
+        }
+
+
+
+        public async Task<ValidateResponse> Validate(ValidateRequest requestModel)
+        {
+            try
+            {
+                var request = JsonConvert.SerializeObject(requestModel);
+                HttpContent httpContent = new StringContent(request, Encoding.UTF8, "application/json");
+                CyberPayPayoutAuthResponse authResponse = await GetClientCredentials();
+                string token = authResponse != null ? authResponse.access_token : string.Empty;
+
+                ValidateResponse response = await _httpService.Post<ValidateResponse>($"{_apiOptions.CyberPayBillUrl}/api/v1/validate", httpContent, token);
+                return response;
             }
             catch (Exception e)
             {

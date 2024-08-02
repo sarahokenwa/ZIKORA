@@ -33,11 +33,11 @@ public class BvnManager : IBvnManager
 
         if (!bvnInfoResponse.isBvnValid)
         {
-            return new GetBvnInfoResponse("", bvnInfoResponse.isBvnValid);
+            return new GetBvnInfoResponse("", bvnInfoResponse.isBvnValid, "");
         }
 
         var createdValidationLog = await _validationLogManager.CreateValidationLog(Builder<ValidationLog>.CreateNew()
-            .With(v => v.Bvn = bvnInfoResponse.bvnDetails.BVN)
+          .With(v => v.Bvn = bvnInfoResponse.bvnDetails.BVN)
             .With(v => v.PhoneNumber = bvnInfoResponse.bvnDetails.phoneNumber)
             .With(v => v.FirstName = bvnInfoResponse.bvnDetails.FirstName)
             .With(v => v.LastName = bvnInfoResponse.bvnDetails.LastName)
@@ -46,7 +46,7 @@ public class BvnManager : IBvnManager
             .With(v => v.Valid = true)
             .Build());
 
-        return new GetBvnInfoResponse(createdValidationLog.Id, bvnInfoResponse.isBvnValid);
+        return new GetBvnInfoResponse(createdValidationLog.Id, bvnInfoResponse.isBvnValid, createdValidationLog.Dob);
     }
 
 }

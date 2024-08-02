@@ -39,7 +39,7 @@ namespace USSDMiddleware.Core.Utilities
 
         public async Task<T> Post<T>(string url, IDictionary<string, string>? headers, string jsonContent)
         {
-            if (headers.Any())
+            if (headers !=null)
             {
                 foreach (var header in headers)
                 {

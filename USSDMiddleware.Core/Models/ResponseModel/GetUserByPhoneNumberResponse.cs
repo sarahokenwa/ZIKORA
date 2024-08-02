@@ -11,3 +11,11 @@ public class GetUserByPhoneNumberResponse
     public string BankVerificationNumber { get; set; }
     public string DateOfBirth { get; set; }
 }
+
+public class UserPhoneNumberDetails
+{
+    public string Email { get; set; }
+    public string PhoneNumber { get; set; }
+    public string BankVerificationNumber { get; set; }
+    public string DateOfBirth { get; set; }
+}

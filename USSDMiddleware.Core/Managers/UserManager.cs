@@ -8,7 +8,7 @@ using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
-
+using USSDMiddleware.Core.Models.Accounts;
 
 namespace USSDMiddleware.Core.Managers
 {
@@ -48,14 +48,16 @@ namespace USSDMiddleware.Core.Managers
             
             var serviceRsp = await provider.GetUserByPhoneNumber(request.PhoneNumber);
             var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
-                .With(u => u.PhoneNumber = serviceRsp.PhoneNumber)
+                .With(u => u.PhoneNumber = request.PhoneNumber)
                 .With(u => u.Address = serviceRsp.Address)
                 .With(u => u.Email = serviceRsp.Email)
                 .With(u => u.CustomerId = serviceRsp.CustomerID)
                 .With(u => u.CustomerName = $"{serviceRsp.LastName}{serviceRsp.OtherNames}")
-                .With(u => u.TransactionPin = "")
+                .With(u => u.TransactionPin = request.TransactionPin)
                 .With(u => u.ProviderId = providerId)
                 .With(u => u.BankVerificationNumber = serviceRsp.BankVerificationNumber)
+                .With(u => u.Address = "NA")
+                
                 .Build());
 
             return Builder<CreateUserResponse>.CreateNew()
@@ -82,6 +84,72 @@ namespace USSDMiddleware.Core.Managers
             }
 
             return await provider.ValidatePhone(request);
+        }
+
+        public async Task<UserPhoneNumberDetails> GetUserByPhoneNumber(PhoneValidationRequest request)
+        {
+            ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
+                .With(v => v.PhoneNumber = request.PhoneNumber)
+                .Build());
+
+            var provider = _providerSelector.GetProvider(request.Provider);
+            var serviceRsp = await provider.GetUserByPhoneNumber(request.PhoneNumber);
+
+            if(serviceRsp != null)
+            {
+                return new UserPhoneNumberDetails
+                {
+                    DateOfBirth = serviceRsp.DateOfBirth,
+                    BankVerificationNumber = serviceRsp.BankVerificationNumber,
+                    Email = serviceRsp.Email,
+                    PhoneNumber = serviceRsp.PhoneNumber,
+                };
+
+            }
+            return new UserPhoneNumberDetails();
+
+        }
+
+        public async Task<List<UserAccountNumber>> GetAccountsByPhoneNumber(PhoneValidationRequest request)
+        {
+            ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
+                .With(v => v.PhoneNumber = request.PhoneNumber)
+                .Build());
+
+            var provider = _providerSelector.GetProvider(request.Provider);
+            var serviceRsp = await provider.GetAccountsByPhoneNumber(request.PhoneNumber);
+
+            if (serviceRsp.Count > 0)
+            {
+               return serviceRsp.Select(x => new UserAccountNumber
+                {
+                    AccountNumber = x.AccountNumber
+                }).ToList();
+              
+
+            }
+            return new List<UserAccountNumber>();
+
+        }
+
+        public async Task<AccountBalanceEnquiry> GetAccountBalance(AccountRequest request)
+        {
+           
+
+            var provider = _providerSelector.GetProvider(request.Provider);
+            var serviceRsp = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber=request.AccountNumber});
+
+            if (serviceRsp !=null)
+            {
+                return new AccountBalanceEnquiry
+                {
+                    Balance = serviceRsp.WithdrawableBalance
+                };
+
+
+            }
+            return new AccountBalanceEnquiry();
+
         }
     }
 }

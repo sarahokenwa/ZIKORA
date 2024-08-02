@@ -83,20 +83,12 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
- 
-        
-        
-        
-        
-        
-        
-
 
         public async Task<AccountCreationResponse> CreateAccount(AccountCreationRequest req)
         {
             try
             {
-                var url = BuildUrl($"/BankOneWebAPI/api/Account/CreateAccountQuick/2");
+                var url = BuildUrl($"BankOneWebAPI/api/Account/CreateAccountQuick/2");
                 var rsp = await _httpService.Post<JObject>(url, BuildHeader(), JsonConvert.SerializeObject(req));
                 var isSuccess = rsp["IsSuccessful"]!.Value<bool>();
                 if (!isSuccess)
@@ -127,9 +119,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                 { "BVN", bvn },
                 { "Token", _apiOptions.Zikora.Token }
             };
-            
+
             var jsonContent = JsonConvert.SerializeObject(request);
-            var bvnInfoResponse = await _httpService.Post<BvnInfoResponse>(BuildUrl("/Account/BVN/GetBVNDetails"), BuildHeader(), jsonContent);
+            var bvnInfoResponse = await _httpService.Post<BvnInfoResponse>(BuildUrl("thirdpartyapiservice/apiservice/Account/BVN/GetBVNDetails"), BuildHeader(), jsonContent);
             if (!bvnInfoResponse.isBvnValid)
             {
                 throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Bvn is invalid");
@@ -140,9 +132,13 @@ namespace USSDMiddleware.Infrastructure.Providers
                 throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST,
                     "Bvn does not belong to this phone number!");
             }
+            if (!bvnInfoResponse.RequestStatus)
+            {
 
-            throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED,
-                "An unable to validate your bvn at the moment, try again later!");
+                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED,
+                    "An unable to validate your bvn at the moment, try again later!");
+            }
+            return bvnInfoResponse;
         }
 
         public async Task<string> GetProviderId(IProviderManager providerManager)

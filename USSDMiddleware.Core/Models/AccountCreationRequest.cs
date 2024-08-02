@@ -20,22 +20,22 @@ namespace USSDMiddleware.Core.Models
         public string FirstName { get; set; }
         public string AccountTier { get; set; }
 
-        public AccountCreationRequest(ValidationLog validationLog)
-        {
-            TransactionTrackingRef = "";
-            AccountOpeningTrackingRef = "";
-            ProductCode = "";
-            LastName = validationLog.LastName;
-            FirstName = validationLog.FirstName;
-            OtherNames = validationLog.OtherNames;
-            BVN = validationLog.Bvn;
-            AccountName = $"{validationLog.LastName} {validationLog.FirstName}";
-            PhoneNo = validationLog.PhoneNumber;
-            Gender = 0;
-            DateOfBirth = validationLog.Dob;
-            AccountOfficerCode = "";
-            Email = "";
-            AccountTier = "";
-        }
+        //public AccountCreationRequest(ValidationLog validationLog)
+        //{
+        //    TransactionTrackingRef = "";
+        //    AccountOpeningTrackingRef = "";
+        //    ProductCode = "";
+        //    LastName = validationLog.LastName;
+        //    FirstName = validationLog.FirstName;
+        //    OtherNames = validationLog.OtherNames;
+        //    BVN = validationLog.Bvn;
+        //    AccountName = $"{validationLog.LastName} {validationLog.FirstName}";
+        //    PhoneNo = validationLog.PhoneNumber;
+        //    Gender = 0;
+        //    DateOfBirth = validationLog.Dob;
+        //    AccountOfficerCode = "";
+        //    Email = "";
+        //    AccountTier = "";
+        //}
     }
 }
