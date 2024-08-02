@@ -13,6 +13,7 @@
     {
         public string BaseUrl { get; set; }
         public string Token { get; set; }
+        public string WalletId { get; set; }
     }
 
 }

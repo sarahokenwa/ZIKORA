@@ -14,6 +14,7 @@ namespace USSDMiddleware.Infrastructure.Data
         public DbSet<Provider> Providers { get; set; }
         public DbSet<Account> Accounts { get; set; }
         public DbSet<ValidationLog> ValidationLogs { get; set; }
+        public DbSet<BillsPayment> BillsPayments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

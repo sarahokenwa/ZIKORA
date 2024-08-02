@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using FizzWare.NBuilder;
+using Microsoft.Extensions.Logging;
+using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Providers;
 using USSDMiddleware.Core.Interfaces.Repositories;
@@ -14,15 +16,17 @@ namespace USSDMiddleware.Core.Managers
         private readonly UssdProviderSelector _providerSelector;
         private readonly ILogger<BillsManager> _log;
         private readonly IProviderManager _providerManager;
+        private readonly IBillsRepository _billsRepository;
 
         public BillsManager(IUserRepository userRepository, ICyberPayProvider cyberPayProvider, ILogger<BillsManager> log,
-            UssdProviderSelector providerSelector, IProviderManager providerManager)
+            UssdProviderSelector providerSelector, IProviderManager providerManager, IBillsRepository billsRepository)
         {
             _userRepository = userRepository;
             _cyberPayProvider = cyberPayProvider;
             _providerSelector = providerSelector;
             _log = log;
             _providerManager = providerManager;
+            _billsRepository = billsRepository;
         }
 
         public async Task<BillersResponse> GetBillers(string categoryId)
@@ -50,7 +54,7 @@ namespace USSDMiddleware.Core.Managers
                 return new VendResponse
                 {
                     Message = "Customer mobile is required",
-                    ResponseCode = "96"
+                    Succeeded = false
                 };
             }
 
@@ -59,7 +63,7 @@ namespace USSDMiddleware.Core.Managers
                 return new VendResponse
                 {
                     Message = "Payment code is required",
-                    ResponseCode = "96"
+                    Succeeded =false
                 };
             }
 
@@ -68,7 +72,7 @@ namespace USSDMiddleware.Core.Managers
                 return new VendResponse
                 {
                     Message = "Invalid transasction amount",
-                    ResponseCode = "96"
+                    Succeeded = false
                 };
             }
 
@@ -77,7 +81,7 @@ namespace USSDMiddleware.Core.Managers
                 return new VendResponse
                 {
                     Message = "Customer ID is required",
-                    ResponseCode = "96"
+                    Succeeded = false
                 };
             }
          
@@ -88,24 +92,53 @@ namespace USSDMiddleware.Core.Managers
                 return new VendResponse
                 {
                     Message = "Request from an invalid customer mobile",
-                    ResponseCode = "96"
+                    Succeeded = false
                 };
             }
+            string merchantRef = Guid.NewGuid().ToString();
 
+            var logBill = await _billsRepository.LogBillPayment(Builder<BillsPayment>.CreateNew()
+                   .With(u => u.Amount = requestModel.Amount)
+                   .With(u => u.validationref= requestModel.validationReference)
+                   .With(u => u.CustomerId = requestModel.CustomerId)
+                   .With(u => u.ProviderId = providerId)
+                   .With(u => u.PhoneNumber = requestModel.CustomerMobile)
+                   .With(u => u.merchantref =merchantRef)
+                   .With(u => u.CreatedOn = DateTime.Now)
+                   .With(u => u.UpdatedOn = DateTime.Now)
+                   .With(u => u.Fee = requestModel.fee)
+                     .With(u => u.itemcode = requestModel.PaymentCode)
+                     
+                   .Build());
+         
             VendRequest request = new VendRequest
             {
-                customerMobile = requestModel.CustomerMobile,
-                paymentCode = requestModel.PaymentCode,
+               // customerMobile = requestModel.CustomerId,
+                //paymentCode = requestModel.PaymentCode,
                 amount = requestModel.Amount,
-                customerEmail = "",
-                merchantRef = Guid.NewGuid().ToString(),
-                validationReference= requestModel.validationReference
+                //customerEmail = "",
+                merchantRef = merchantRef,
+                validationRef= requestModel.validationReference
 
-        };
-            return await _cyberPayProvider.Vend(request);
+            };
+            var vendBill= await _cyberPayProvider.Vend(request);
+
+         
+            if (vendBill.Succeeded && vendBill.Data != null)
+            {
+                logBill.processorRef = vendBill.Data.TransactionReference;
+                logBill.responsecode = "Successfull";
+
+            }
+            else
+            {
+                logBill.responsecode = "Failed";
+            }
+            var updateBill = await _billsRepository.UpdateBillPayment(logBill, providerId);
+            return vendBill;
         }
 
-
+        
 
         public async Task<ValidateResponse> Validate(ValidateRequestModel requestModel)
         {

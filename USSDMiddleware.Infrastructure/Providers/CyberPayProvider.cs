@@ -88,6 +88,7 @@ namespace USSDMiddleware.Infrastructure.Providers
         {
             try
             {
+                requestModel.walletId = _apiOptions.Zikora.WalletId ;
                 var request = JsonConvert.SerializeObject(requestModel);
                 HttpContent httpContent = new StringContent(request, Encoding.UTF8, "application/json");
                 CyberPayPayoutAuthResponse authResponse = await GetClientCredentials();
