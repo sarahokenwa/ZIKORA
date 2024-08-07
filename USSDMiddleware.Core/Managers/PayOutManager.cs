@@ -1,0 +1,54 @@
+﻿using Microsoft.Extensions.Logging;
+using USSDMiddleware.Core.Enums;
+using USSDMiddleware.Core.Exceptions;
+using USSDMiddleware.Core.Interfaces.ExternalServices;
+using USSDMiddleware.Core.Interfaces.Managers;
+using USSDMiddleware.Core.Models.PayOut;
+using USSDMiddleware.Core.Models.ResponseModel;
+
+namespace USSDMiddleware.Core.Managers
+{
+    public class PayOutManager : IPayOutManager
+    {
+        private readonly IPayOutService _payOutService;
+        private readonly ILogger<PayOutManager> _log;
+
+        public PayOutManager(IPayOutService payOutService, ILogger<PayOutManager> log)
+        {
+            _payOutService = payOutService; 
+            _log = log;
+        }
+
+        public async Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequest request)
+        {
+            try
+            {
+                var instantPayOut = await _payOutService.InstantPayOut(request);
+
+                return instantPayOut;
+
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while trying to make instant payment.");
+                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Instant payout failed.");
+            }
+        }
+
+        public async Task<RequeryResponse> RequeryPayOut(string reference)
+        {
+            try
+            {
+                var requeryResponse = await _payOutService.RequeryPayOut(reference);
+
+                return requeryResponse;
+
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while trying to requery instant payment.");
+                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Requery failed.");
+            }
+        }
+    }
+}
