@@ -3,6 +3,7 @@ using USSDMiddleware.Core.Enums;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.ExternalServices;
 using USSDMiddleware.Core.Interfaces.Managers;
+using USSDMiddleware.Core.Models;
 using USSDMiddleware.Core.Models.PayOut;
 using USSDMiddleware.Core.Models.ResponseModel;
 
@@ -50,5 +51,41 @@ namespace USSDMiddleware.Core.Managers
                 throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Requery failed.");
             }
         }
+
+        public async Task<BankResponseDto[]> Get()
+        {
+            try
+            {
+                var bankResponse = await _payOutService.Get();
+
+                if (bankResponse == null || bankResponse.Data == null || !bankResponse.Data.Any())
+                {
+                    _log.LogError("Failed to retrieve bank data.");
+                    throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Failed to retrieve bank data.");
+                }
+
+                var bankList = bankResponse.Data.Select(b => new BankResponseDto
+                {
+                    Id = b.Id,
+                    BankCode = b.BankCode,
+                    BankName = b.BankName
+                }).ToArray();
+                return bankList;
+
+                //return new BankResponse
+                //{
+                //    Code = bankResponse.Code,
+                //    Succeeded = bankResponse.Succeeded,
+                //    Data = bankList
+                //};
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while trying to retrieve banks.");
+                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Get all Banks failed.");
+            }
+        }
+
+
     }
 }

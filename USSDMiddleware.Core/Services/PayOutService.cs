@@ -131,6 +131,29 @@ namespace USSDMiddleware.Core.Services
             }
         }
 
+        public async Task<BankResponse> Get()
+        {
+            try
+            {
+                var credentials = await _cyberPayProvider.GetClientCredentials();
+                var url = $"{_apiOptions.PaymentUrl}/api/v1/banks/all";
+                var response = await _httpService.Get<BankResponse>(url, credentials.access_token);
+
+                if (response == null || response.Data == null || !response.Data.Any())
+                {
+                    _log.LogError($"Failed to retrieve banks. HTTP status code: No valid response received.");
+                    return null;
+                }
+
+                _log.LogInformation($"All Banks Response: {JsonConvert.SerializeObject(response)}");
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, ex.InnerException?.Message ?? ex.Message);
+                throw new NotSuccessfulException("Failed to retrieve banks.");
+            }
+        }
 
     }
 }
