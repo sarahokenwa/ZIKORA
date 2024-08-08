@@ -9,6 +9,7 @@ using USSDMiddleware.Infrastructure.Providers;
 using USSDMiddleware.Core.Services;
 using USSDMiddleware.Core.Utilities;
 using Newtonsoft.Json;
+using USSDMiddleware.Core.Interfaces.ExternalServices;
 
 namespace USSDMiddleware.Api.Extensions
 {
@@ -24,6 +25,8 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<IBillsManager, BillsManager>();
             services.AddScoped<IProviderManager, ProviderManager>();
             services.AddScoped<IValidationLogManager, ValidationLogManager>();
+            services.AddScoped<IPayOutManager, PayOutManager>();
+            
 
 
             //Repositories
@@ -43,9 +46,10 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<IUssdProvider, ZikoraProvider>();
             services.AddScoped<ICyberPayProvider, CyberPayProvider>();
             services.AddScoped<UssdProviderSelector>();
+            services.AddScoped<IPayOutService, PayOutService>();
 
-          
-            
+
+
             // services.AddSingleton<ILogService, SerilogService>();
 
             #endregion service

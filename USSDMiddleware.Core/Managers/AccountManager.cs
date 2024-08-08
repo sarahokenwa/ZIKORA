@@ -4,8 +4,10 @@ using Microsoft.Extensions.Logging;
 using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Enums;
 using USSDMiddleware.Core.Exceptions;
+using USSDMiddleware.Core.Interfaces.ExternalServices;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Repositories;
+using USSDMiddleware.Core.Models.Accounts;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Services;
@@ -21,6 +23,7 @@ namespace USSDMiddleware.Core.Managers
         private readonly IProviderManager _providerManager;
         private readonly IMapper _mapper;
         private readonly ILogger<AccountManager> _log;
+        private readonly IPayOutService _payOutService;
 
 
         public AccountManager(
@@ -29,7 +32,8 @@ namespace USSDMiddleware.Core.Managers
             IMapper mapper,
             ILogger<AccountManager> log,
             IValidationLogRepository validationLogRepository,
-            IProviderManager providerManager)
+            IProviderManager providerManager,
+            IPayOutService payOutService)
         {
             _providerSelector = providerSelector;
             _userRepository = userRepository;
@@ -37,6 +41,7 @@ namespace USSDMiddleware.Core.Managers
             _log = log;
             _validationLogRepository = validationLogRepository;
             _providerManager = providerManager;
+            _payOutService = payOutService;
         }
 
         public async Task<CreateAccountResponse> CreateAccount(CreateAccountRequest request)
@@ -83,6 +88,23 @@ namespace USSDMiddleware.Core.Managers
                 throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Account creation failed.");
             }
         }
+
+        public async Task<NameEnquiryResponse> NameEnquiry(NameEnquiryRequest request)
+        {
+            try
+            {
+                var nameEnquiry = await _payOutService.NameEnquiry(request);
+
+                return nameEnquiry;
+
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while trying to check account name.");
+                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Name enquiry failed.");
+            }
+        }
+
     }
 }
 
