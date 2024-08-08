@@ -52,7 +52,7 @@ namespace USSDMiddleware.Core.Managers
             }
         }
 
-        public async Task<BankResponse> Get()
+        public async Task<BankResponseDto[]> Get()
         {
             try
             {
@@ -70,13 +70,14 @@ namespace USSDMiddleware.Core.Managers
                     BankCode = b.BankCode,
                     BankName = b.BankName
                 }).ToArray();
+                return bankList;
 
-                return new BankResponse
-                {
-                    Code = bankResponse.Code,
-                    Succeeded = bankResponse.Succeeded,
-                    Data = bankList
-                };
+                //return new BankResponse
+                //{
+                //    Code = bankResponse.Code,
+                //    Succeeded = bankResponse.Succeeded,
+                //    Data = bankList
+                //};
             }
             catch (Exception ex)
             {

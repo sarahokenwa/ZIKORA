@@ -8,6 +8,6 @@ namespace USSDMiddleware.Core.Interfaces.Managers
     {
         Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequest request);
         Task<RequeryResponse> RequeryPayOut(string reference);
-        Task<BankResponse> Get();
+        Task<BankResponseDto[]> Get();
     }
 }

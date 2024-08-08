@@ -50,9 +50,9 @@ namespace USSDMiddleware.Api.Controllers
         {
             var bankResponse = await _payOutManager.Get();
 
-            if (bankResponse == null || bankResponse.Data == null || !bankResponse.Data.Any())
+            if (bankResponse == null)
             {
-                return NotFound(new Response<BankResponse>
+                return NotFound(new Response<BankResponseDto[]>
                 {
                     Code = ResponseCodes.NotFound,
                     Succeeded = false,
@@ -60,7 +60,7 @@ namespace USSDMiddleware.Api.Controllers
                 });
             }
 
-            return Ok(new Response<BankResponse>
+            return Ok(new Response<BankResponseDto[]>
             {
                 Code = ResponseCodes.Successful,
                 Succeeded = true,
