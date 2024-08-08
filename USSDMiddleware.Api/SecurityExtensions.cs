@@ -28,7 +28,7 @@ namespace USSDMiddleware.Api
 
             var host = Configuration.GetValue<string>("Identity:Authority");
             var idoptions = Configuration.GetSection("Identity").Get<IdentityOptions>();
-
+             
             services.AddScoped<SecurityService>();
 
 

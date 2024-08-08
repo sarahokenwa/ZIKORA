@@ -50,4 +50,12 @@ public class BillsController : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpPost("validate")]
+    public async Task<IActionResult> Validate([FromBody] ValidateRequestModel request)
+    {
+        var result = await _billsManager.Validate(request);
+
+        return Ok(result);
+    }
 }

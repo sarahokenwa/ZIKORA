@@ -41,7 +41,7 @@ namespace USSDMiddleware.Core.Exceptions
                 PhoneNumberValidationException => (int)HttpStatusCode.BadRequest, 
                 NotSuccessfulException => (int)HttpStatusCode.BadRequest,
                 BvnAlreadyUsedException => (int)HttpStatusCode.BadRequest,
-                AlreadyExistException => (int)HttpStatusCode.BadRequest,
+                AlreadyExistException => (int)HttpStatusCode.AlreadyReported,
                 _ => (int)HttpStatusCode.InternalServerError
             };
 

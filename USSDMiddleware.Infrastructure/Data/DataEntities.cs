@@ -14,6 +14,7 @@ namespace USSDMiddleware.Infrastructure.Data
         public DbSet<Provider> Providers { get; set; }
         public DbSet<Account> Accounts { get; set; }
         public DbSet<ValidationLog> ValidationLogs { get; set; }
+        public DbSet<BillsPayment> BillsPayments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -23,11 +24,6 @@ namespace USSDMiddleware.Infrastructure.Data
                     v => v.ToString(),
                     v => v == null ? null : v
                 );
-
-            modelBuilder.Entity<Account>()
-                .HasOne(a => a.User)
-                .WithMany(u => u.Accounts)
-                .HasForeignKey(a => a.UserId);
 
             base.OnModelCreating(modelBuilder);
         }

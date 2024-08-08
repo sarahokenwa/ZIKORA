@@ -23,7 +23,7 @@ builder.Services.AddDatabaseServices(builder.Configuration);
 builder.Services.AddSecurityServices(builder.Configuration);
 builder.Services.AddAppServices(builder.Configuration);
 
-builder.Services.AddSingleton(builder.Configuration.GetSection("Identity").Get<IdentityOptions>());
+//builder.Services.AddSingleton(builder.Configuration.GetSection("Identity").Get<IdentityOptions>());
 var corsOrigins = builder.Configuration.GetValue<string>("CorsOrigins").Split(",");
 
 builder.Services.AddCors(options =>

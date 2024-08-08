@@ -5,6 +5,7 @@ using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using Microsoft.AspNetCore.Authorization;
+using USSDMiddleware.Core.Models.Accounts;
 
 namespace USSDMiddleware.Api.Controllers
 {
@@ -25,7 +26,20 @@ namespace USSDMiddleware.Api.Controllers
         {
             var result = await _accountManager.CreateAccount(request);
 
-            return Ok(new Response<AccountCreationResponse>()
+            return Ok(new Response<CreateAccountResponse>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = result
+            });
+        }
+
+        [HttpPost("name-enquiry")]
+        public async Task<IActionResult> NameEnquiry([FromBody] NameEnquiryRequest request)
+        {
+            var result = await _accountManager.NameEnquiry(request);
+
+            return Ok(new Response<NameEnquiryResponse>()
             {
                 Code = ResponseCodes.Successful,
                 Succeeded = true,
