@@ -45,7 +45,7 @@ namespace USSDMiddleware.Api.Controllers
             });
         }
 
-        [HttpGet("all")]
+        [HttpGet("banks")]
         public async Task<IActionResult> GetBanks()
         {
             var bankResponse = await _payOutManager.Get();
