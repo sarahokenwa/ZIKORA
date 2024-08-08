@@ -32,7 +32,7 @@ namespace USSDMiddleware.Api.Controllers
             });
         }
 
-        [HttpGet("reference/{reference}")]
+        [HttpGet("requery/{reference}")]
         public async Task<IActionResult> RequeryPayOutTransfer(string reference)
         {
             var result = await _payOutManager.RequeryPayOut(reference);
