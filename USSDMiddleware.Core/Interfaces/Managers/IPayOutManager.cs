@@ -1,4 +1,5 @@
-﻿using USSDMiddleware.Core.Models.PayOut;
+﻿using USSDMiddleware.Core.Models;
+using USSDMiddleware.Core.Models.PayOut;
 using USSDMiddleware.Core.Models.ResponseModel;
 
 namespace USSDMiddleware.Core.Interfaces.Managers
@@ -7,5 +8,6 @@ namespace USSDMiddleware.Core.Interfaces.Managers
     {
         Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequest request);
         Task<RequeryResponse> RequeryPayOut(string reference);
+        Task<BankResponseDto[]> Get();
     }
 }

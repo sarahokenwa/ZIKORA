@@ -44,5 +44,30 @@ namespace USSDMiddleware.Api.Controllers
                 Data = result
             });
         }
+
+        [HttpGet("banks")]
+        public async Task<IActionResult> GetBanks()
+        {
+            var bankResponse = await _payOutManager.Get();
+
+            if (bankResponse == null)
+            {
+                return NotFound(new Response<BankResponseDto[]>
+                {
+                    Code = ResponseCodes.NotFound,
+                    Succeeded = false,
+                    Data = null
+                });
+            }
+
+            return Ok(new Response<BankResponseDto[]>
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = bankResponse
+            });
+        }
     }
 }
+
+
