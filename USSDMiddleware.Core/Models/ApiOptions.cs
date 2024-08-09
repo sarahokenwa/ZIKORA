@@ -7,6 +7,8 @@
         public string CyberPayAuthUrl { get; set; }
         public string AuthUsername { get; set; }
         public string AuthPassword { get; set; }
+        public string CyberPayFundTransferUrl { get; set; }
+        public string PaymentUrl { get; set; }
     }
 
     public class ZikoraOptions
