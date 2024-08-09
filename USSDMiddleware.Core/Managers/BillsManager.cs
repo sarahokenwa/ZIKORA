@@ -95,6 +95,14 @@ namespace USSDMiddleware.Core.Managers
                     Succeeded = false
                 };
             }
+            if (!userDetail.Value.TransactionPin.Equals(requestModel.TransactionPin))
+            {
+                return new VendResponse
+                {
+                    Message = "Invalid Transaction Pin",
+                    Succeeded = false
+                };
+            }
             string merchantRef = Guid.NewGuid().ToString();
 
             var logBill = await _billsRepository.LogBillPayment(Builder<BillsPayment>.CreateNew()
