@@ -17,5 +17,6 @@ namespace USSDMiddleware.Core.Interfaces.Providers
          Task<string > GetProviderId(IProviderManager providerManager);
         Task<BalanceEnquiryResponse> CheckAccountBalance(BalanceEnquiryRequest model);
         Task<List<GetAccountResponse>> GetAccountsByPhoneNumber(string phoneNumber);
-    }
+        Task<DebitCustomerAccountResponse> DebitCustomerAccount(DebitCustomerAccountRequest model);
+        }
 }

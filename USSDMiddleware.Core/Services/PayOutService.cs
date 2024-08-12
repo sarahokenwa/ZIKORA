@@ -66,10 +66,13 @@ namespace USSDMiddleware.Core.Services
         {
             try
             {
+                var bankCode = request.Provider == Enums.Providers.ZIKORA ? "ZIKORA_BANK_CODE" : null;
+
+                //To modify this nameenquiry request code.
                 var nameEnquiryRequest = new NameEnquiryRequest
                 {
-                    AccountNumber = request.AccountNumber,
-                    BankCode = request.BankCode
+                    AccountNumber = request.SenderAccountNumber,
+                    //BankCode = request.
                 };
 
                 var nameEnquiryResponse = await NameEnquiry(nameEnquiryRequest);

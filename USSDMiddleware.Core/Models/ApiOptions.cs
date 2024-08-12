@@ -9,6 +9,9 @@
         public string AuthPassword { get; set; }
         public string CyberPayFundTransferUrl { get; set; }
         public string PaymentUrl { get; set; }
+        public string NibssCode { get; set; }
+        public string GLCode { get; set; }
+
     }
 
     public class ZikoraOptions
