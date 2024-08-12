@@ -15,7 +15,7 @@ namespace USSDMiddleware.Core.Models.Bills
        // public string merchantRef { get; set; }
         public string validationReference { get; set; }
         public decimal fee { get; set; }
-
+        public string TransactionPin { get; set; }
         public Enums.Providers Provider { get; set; } = Enums.Providers.ZIKORA;
     }
 }

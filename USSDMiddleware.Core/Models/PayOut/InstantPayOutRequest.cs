@@ -5,7 +5,7 @@
         public string WalletCode { get; set; }
         public string BeneficiaryName { get; set; }
         public string SenderName { get; set; }
-        public int Amount { get; set; }
+        public decimal Amount { get; set; }
         public string AccountNumber { get; set; }
         public string BankCode { get; set; }
         public string WebHook { get; set; }
