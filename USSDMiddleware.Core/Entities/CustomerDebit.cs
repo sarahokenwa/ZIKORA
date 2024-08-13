@@ -1,10 +1,14 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using USSDMiddleware.Infrastructure.Entities;
 
 namespace USSDMiddleware.Core.Entities
 {
     public class CustomerDebit
     {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public string Id { get; set; }
         [StringLength(60)]
         public string RetrievalReference { get; set; }
         [StringLength(60)]
@@ -27,5 +31,11 @@ namespace USSDMiddleware.Core.Entities
         public string ProviderId { get; set; }
         public DateTime CreatedOn { get; set; } = DateTime.Now;
         public DateTime UpdatedOn { get; set; } = DateTime.Now;
+
+        public CustomerDebit()
+        {
+            Id = Guid.NewGuid().ToString();
+        }
+
     }
 }

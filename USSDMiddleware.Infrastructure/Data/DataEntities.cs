@@ -16,6 +16,9 @@ namespace USSDMiddleware.Infrastructure.Data
         public DbSet<ValidationLog> ValidationLogs { get; set; }
         public DbSet<BillsPayment> BillsPayments { get; set; }
 
+        public DbSet<FundTransfer> FundTransfers { get; set; }
+        public DbSet<CustomerDebit> CustomerDebits { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>()

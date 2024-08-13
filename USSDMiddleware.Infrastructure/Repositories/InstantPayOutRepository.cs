@@ -40,7 +40,7 @@ namespace USSDMiddleware.Infrastructure.Repositories
         {
             try
             {
-                var instantPayment = await _dbContext.FundTransfers.FirstOrDefaultAsync(u => u.merchantref == model.MerchantRef && u.ProviderId == providerId);
+                var instantPayment = await _dbContext.FundTransfers.FirstOrDefaultAsync(u => u.MerchantRef == model.MerchantRef && u.ProviderId == providerId);
 
                 if (instantPayment != null)
                 {

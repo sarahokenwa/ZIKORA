@@ -11,6 +11,11 @@
         public string PaymentUrl { get; set; }
         public string NibssCode { get; set; }
         public string GLCode { get; set; }
+        public string WalletCode { get; set; }
+        public decimal MerchantCharge { get; set; }
+        public string WebHook {  get; set; }
+        public string WalletType { get; set; }
+
 
     }
 

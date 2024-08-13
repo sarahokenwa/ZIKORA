@@ -210,9 +210,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             {
                 var authenticationToken = _apiOptions.Zikora.Token;
                 var debitUrl = $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/CoreTransactions/Debit";
-                var statusQueryUrl =
-                    $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/CoreTransactions/TransactionStatusQuery";
-
+               
                 var headers = BuildHeader();
 
                 var debitPayload = new
@@ -232,61 +230,39 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 if (debitResponseContent != null)
                 {
-                    
+
                     var debitResult = new DebitCustomerAccountResponse
                     {
-                        IsSuccessful = debitResponseContent.IsSuccessful,
-                        ResponseMessage = debitResponseContent.ResponseMessage,
-                        ResponseCode = debitResponseContent.ResponseCode,
-                        Reference = debitResponseContent.Reference,
+                        Succeeded = debitResponseContent.Succeeded,
+                        Message = debitResponseContent.Message,
+                        Code = debitResponseContent.Code,
+                        Data = new DebitCustomerAccountResponse.ResponseData
+                        {
+                            IsSuccessful = debitResponseContent.Data.IsSuccessful,
+                            ResponseMessage = debitResponseContent.Data.ResponseMessage,
+                            ResponseCode = debitResponseContent.Data.ResponseCode,
+                            Reference = debitResponseContent.Data.Reference
+                        }
                     };
 
                     _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
 
-                    if (!debitResult.IsSuccessful)
+                    if (!debitResult.Data.IsSuccessful)
+                    {
+                        _log.LogError($"Debit was not successful: {debitResult.Data.ResponseMessage}");
+                        throw new NotSuccessfulException($"Failed to debit customer account: {debitResult.Data.ResponseMessage}");
+                    }
+
+
+                    _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
+
+                    if (!debitResult.Data.IsSuccessful)
                     {
                         _log.LogError("Debit was not successful: {debitResult.ResponseMessage}");
                         throw new NotSuccessfulException("Failed to debit customer account: {debitResult.ResponseMessage}");
                     }
                     return debitResult;
 
-                    //var statusQueryPayload = new
-                    //{
-                    //    RetrievalReference = model.RetrievalReference,
-                    //    TransactionDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                    //    TransactionType = "DEBIT",
-                    //    model.Amount,
-                    //    token = authenticationToken,
-                    //};
-
-                    //var statusQueryJsonContent = JsonConvert.SerializeObject(statusQueryPayload);
-
-                    //_log.LogInformation($"Status query payload: {statusQueryJsonContent}");
-
-                    //var statusQueryResponseContent =
-                    //    await _httpService.Post<DebitCustomerAccountResponse>(statusQueryUrl, headers, statusQueryJsonContent);
-
-                    //if (statusQueryResponseContent != null)
-                    //{
-                    //    //var statusQueryResponseJson =
-                    //    //    JsonConvert.DeserializeObject<JObject>(statusQueryResponseContent);
-                    //    //_log.LogInformation($"Status query response content: {statusQueryResponseJson}");
-
-                    //    var statusQueryResult = new DebitCustomerAccountResponse
-                    //    {
-                    //        IsSuccessful = statusQueryResponseContent.IsSuccessful,
-                    //        ResponseMessage = statusQueryResponseContent.ResponseMessage,
-                    //        ResponseCode = statusQueryResponseContent.ResponseCode,
-                    //        Reference = statusQueryResponseContent.Reference
-                    //    };
-
-                    //    return statusQueryResult;
-                    //}
-                    //else
-                    //{
-                    //    _log.LogError("Failed to query transaction status.");
-                    //    throw new NotSuccessfulException("Failed to query transaction status.");
-                    //}
                 }
                 else
                 {

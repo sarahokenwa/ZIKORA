@@ -39,7 +39,7 @@ namespace USSDMiddleware.Infrastructure.Repositories
         {
             try
             {
-                var debitCustomer = await _dbContext.CustomerDebits.FirstOrDefaultAsync(u => u.retrievalReference == model.RetrievalReference && u.ProviderId == providerId);
+                var debitCustomer = await _dbContext.CustomerDebits.FirstOrDefaultAsync(u => u.RetrievalReference == model.RetrievalReference && u.ProviderId == providerId);
 
                 if (debitCustomer != null)
                 {

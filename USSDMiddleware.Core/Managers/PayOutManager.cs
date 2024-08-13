@@ -142,10 +142,12 @@ namespace USSDMiddleware.Core.Managers
                         logdebitRequest.ProcessorRef = debitResponse.Data.Reference;
                         //Can't access the ResponseDataProperty from here.
                         //logdebitRequest.responsecode = "Successfull";
+                        
 
                     }
                     else
                     {
+
                         //Can't access the ResponseDataProperty from here.
                         // logdebitRequest.responsecode = "Failed";
                     }
@@ -155,7 +157,7 @@ namespace USSDMiddleware.Core.Managers
                     {
 
                        var logInstantPayOut = await _instantPayOutRepository.LogInstantPayment(Builder<FundTransfer>.CreateNew() 
-                      .With(u => u.WalletCode = request.WalletCode) // this should be gotten from us.
+                      .With(u => u.WalletCode = _configuration["ApiOptions:WalletCode"])
                       .With(u => u.SenderAccountNumber = request.SenderAccountNumber)
                       .With(u => u.SenderAccountName = request.SenderAccountName)
                       .With(u => u.BeneficiaryAccountName = request.BeneficiaryAccountName)
@@ -163,12 +165,13 @@ namespace USSDMiddleware.Core.Managers
                       .With(u => u.BankCode = request.BankCode)
                       .With(u => u.ProviderId = providerId)
                       .With(u => u.Amount = request.Amount)
+                      .With(u => u.PhoneNumber = request.PhoneNumber)
                       .With(u => u.TransactionPin = request.TransactionPin)
                       .With(u => u.Narration = request.Narration)
                       .With(u => u.MerchantRef = merchantReference)
-                      .With(u => u.MerchantCharge = request.MerchantCharge)// should be gotten from us.
-                      .With(u => u.WebHook = request.Webhook)// should be gotten from us.
-                      .With(u => u.WalletType = request.WalletType) // it is gotten from us.
+                      .With(u => u.MerchantCharge = decimal.Parse(_configuration["ApiOptions:MerchantCharge"]))
+                      .With(u => u.WebHook = _configuration["ApiOptions:WebHook"])
+                      .With(u => u.WalletType = _configuration["ApiOptions:WalletType"])
                       .With(u => u.CreatedOn = DateTime.Now)
                       .With(u => u.UpdatedOn = DateTime.Now) 
 
