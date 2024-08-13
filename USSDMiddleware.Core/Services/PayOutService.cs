@@ -69,7 +69,7 @@ namespace USSDMiddleware.Core.Services
                 var bankCode = request.Provider == Enums.Providers.ZIKORA ? "ZIKORA_BANK_CODE" : null;
 
                 //To modify this nameenquiry request code.
-                var nameEnquiryRequest = new NameEnquiryRequest
+                var nameEnquiryRequest = new NameEnquiryRequest //bankcode is in the request(receiver)
                 {
                     AccountNumber = request.SenderAccountNumber,
                     //BankCode = request.
@@ -98,14 +98,14 @@ namespace USSDMiddleware.Core.Services
                 }
                 else
                 {
-                    _log.LogInformation("Instant PayOut Response: null");
-                    throw new Exception("Instant payout failed.");
+                    _log.LogInformation("Instant PayOut Response: {instantPayOutResponse.Message}");
+                    throw new Exception("Instant payout failed: {instantPayOutResponse.Message}");
                 }
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred during instant payout");
-                throw new NotSuccessfulException("Failed to complete instant payout.");
+                _log.LogError(ex, "An error occurred during instant payout: {instantPayOutResponse.Message}");
+                throw new NotSuccessfulException("Failed to complete instant payout: {instantPayOutResponse.Message}");
             }
         }
 
