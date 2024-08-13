@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using FizzWare.NBuilder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Enums;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.ExternalServices;
@@ -20,13 +22,17 @@ namespace USSDMiddleware.Core.Managers
         private readonly UssdProviderSelector _providerSelector;
         private readonly IProviderManager _providerManager;
         private readonly IConfiguration _configuration;
+        private readonly IInstantPayOutRepository _instantPayOutRepository;
+        private readonly ICustomerDebitRepository _customerDebitRepository;
 
         public PayOutManager(IPayOutService payOutService,
             ILogger<PayOutManager> log,
             IUserRepository userRepository,
             UssdProviderSelector providerSelector,
             IProviderManager providerManager,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IInstantPayOutRepository instantPayOutRepository,
+            ICustomerDebitRepository customerDebitRepository)
         {
             _payOutService = payOutService;
             _log = log;
@@ -34,12 +40,17 @@ namespace USSDMiddleware.Core.Managers
             _providerSelector = providerSelector;
             _providerManager = providerManager;
             _configuration = configuration;
+            _instantPayOutRepository = instantPayOutRepository;
+            _customerDebitRepository = customerDebitRepository;
         }
 
         public async Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequest request)
         {
             try
             {
+                string retrievalReference = Guid.NewGuid().ToString();
+                string merchantReference = Guid.NewGuid().ToString();
+
                 var provider = _providerSelector.GetProvider(request.Provider);
                 var providerId = await provider.GetProviderId(_providerManager);
 
@@ -103,32 +114,94 @@ namespace USSDMiddleware.Core.Managers
                 {
                     var debitRequest = new DebitCustomerAccountRequest
                     {
-                        RetrievalReference = Guid.NewGuid().ToString("N").ToUpper(),
+                        RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12),
                         AccountNumber = request.SenderAccountNumber,
-                        NibssCode = _configuration["ApiOptions:NibssCode"], 
                         Amount = request.Amount.ToString(),
-                        Fee = _configuration["ApiOptions:FundTransferFee"], 
                         Narration = $"Debit Customer account to {request.BeneficiaryAccountName}",
-                        GLCode = _configuration["ApiOptions:GLCode"]
                     };
+
+                    var logdebitRequest = await _customerDebitRepository.LogCustomerDebit(Builder<CustomerDebit>.CreateNew() 
+                      .With(d => d.RetrievalReference = retrievalReference)
+                      .With(d => d.AccountNumber = request.SenderAccountNumber)
+                      .With(d => d.BankCode = request.BankCode)
+                      .With(d => d.ProviderId = providerId)
+                      .With(d => d.Amount = request.Amount)
+                      .With(d => d.TransactionPin = request.TransactionPin)
+                      .With(d => d.Narration = request.Narration)
+                      .With(d => d.GLCode = _configuration["ApiOptions:GLCode"])
+                      .With(d => d.NibssCode = _configuration["ApiOptions:NibssCode"])
+                      .With(d => d.Fee = decimal.Parse(_configuration["ApiOptions:FundTransferFee"]))
+                      .With(d => d.CreatedOn = DateTime.Now)
+                      .With(d => d.UpdatedOn = DateTime.Now) 
+                      .Build());
+
                     var debitResponse = await provider.DebitCustomerAccount(debitRequest);
-                    if(debitResponse.IsSuccessful)
+
+                    if (debitResponse.Succeeded && debitResponse.Data != null)
                     {
+                        logdebitRequest.ProcessorRef = debitResponse.Data.Reference;
+                        //Can't access the ResponseDataProperty from here.
+                        //logdebitRequest.responsecode = "Successfull";
+
+                    }
+                    else
+                    {
+                        //Can't access the ResponseDataProperty from here.
+                        // logdebitRequest.responsecode = "Failed";
+                    }
+                    var updateCustomerDebit = await _customerDebitRepository.UpdateCustomerDebit(logdebitRequest, providerId);
+                    
+                    if (debitResponse.Succeeded)
+                    {
+
+                       var logInstantPayOut = await _instantPayOutRepository.LogInstantPayment(Builder<FundTransfer>.CreateNew() 
+                      .With(u => u.WalletCode = request.WalletCode) // this should be gotten from us.
+                      .With(u => u.SenderAccountNumber = request.SenderAccountNumber)
+                      .With(u => u.SenderAccountName = request.SenderAccountName)
+                      .With(u => u.BeneficiaryAccountName = request.BeneficiaryAccountName)
+                      .With(u => u.BeneficiaryAccountNumber = request.BeneficiaryAccountNumber)
+                      .With(u => u.BankCode = request.BankCode)
+                      .With(u => u.ProviderId = providerId)
+                      .With(u => u.Amount = request.Amount)
+                      .With(u => u.TransactionPin = request.TransactionPin)
+                      .With(u => u.Narration = request.Narration)
+                      .With(u => u.MerchantRef = merchantReference)
+                      .With(u => u.MerchantCharge = request.MerchantCharge)// should be gotten from us.
+                      .With(u => u.WebHook = request.Webhook)// should be gotten from us.
+                      .With(u => u.WalletType = request.WalletType) // it is gotten from us.
+                      .With(u => u.CreatedOn = DateTime.Now)
+                      .With(u => u.UpdatedOn = DateTime.Now) 
+
+                      .Build());
+
+
                         var instantPayOut = await _payOutService.InstantPayOut(request);
+                        if (instantPayOut.Succeeded && instantPayOut.Data != null)
+                        {
+                            logInstantPayOut.ProcessorRef = instantPayOut.Data.Data;
+                            instantPayOut.Code = "200"; 
+                        }
+                        else
+                        {
+                            instantPayOut.Code = "500";
+                        }
+
+                        var updateinstantPayOut = await _instantPayOutRepository.UpdateInstantPayment(logInstantPayOut, providerId);
                         return instantPayOut;
 
                     }
-                    
-
-                   
                 }
+
                 return new InstantPayOutResponse
                 {
-                    sessionId = "6789qwerhbgfdctruikjnhft", //Write a code to generate this.
-                    Succeeded = false,
-                    Code = "INVALID_PIN",
-                    Message = "Invalid transaction PIN",
-                    Data = null
+                    Data = new InstantPayOutResponse.DataResponse
+                    {
+                        SessionId = "",
+                        Succeeded = false,
+                        Code = "",
+                        Message = "",
+                        Data = null
+                    }
                 };
 
             }
@@ -175,12 +248,6 @@ namespace USSDMiddleware.Core.Managers
                 }).ToArray();
                 return bankList;
 
-                //return new BankResponse
-                //{
-                //    Code = bankResponse.Code,
-                //    Succeeded = bankResponse.Succeeded,
-                //    Data = bankList
-                //};
             }
             catch (Exception ex)
             {

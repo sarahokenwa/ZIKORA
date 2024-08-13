@@ -1,4 +1,5 @@
 ﻿using FizzWare.NBuilder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -20,15 +21,18 @@ namespace USSDMiddleware.Infrastructure.Providers
 
         private readonly IHttpService _httpService;
         private readonly ILogger<ZikoraProvider> _log;
+        private readonly IConfiguration _configuration;
+
 
         public Core.Enums.Providers ProviderType => Core.Enums.Providers.ZIKORA;
 
         public ZikoraProvider(ApiOptions apiOptions, IHttpService httpService,
-            ILogger<ZikoraProvider> log)
+            ILogger<ZikoraProvider> log, IConfiguration configuration)
         {
             _apiOptions = apiOptions;
             _httpService = httpService;
             _log = log;
+            _configuration = configuration;
         }
 
         public async Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request)
@@ -216,89 +220,133 @@ namespace USSDMiddleware.Infrastructure.Providers
                     model.RetrievalReference,
                     model.AccountNumber,
                     model.Amount,
-                    model.Fee,
                     model.Narration,
-                    model.GLCode,
-                    model.NibssCode,
+                    GLCode = _configuration["ApiOptions:GLCode"],
+                    NibssCode = _configuration["ApiOptions:NibssCode"],
+                    Fee = _configuration["ApiOptions:FundTransferFee"],
                     token = authenticationToken,
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(debitPayload);
-                return new DebitCustomerAccountResponse();
-                //var debitResponseContent = await _httpService.Post(debitUrl, headers, jsonContent);
+                var debitResponseContent = await _httpService.Post<DebitCustomerAccountResponse>(debitUrl, headers, jsonContent);
 
-                //if (!string.IsNullOrEmpty(debitResponseContent))
-                //{
-                //    var debitResponseJson = JsonConvert.DeserializeObject<JObject>(debitResponseContent);
-                //    _log.LogInformation($"Debit response content: {debitResponseJson}");
+                if (debitResponseContent != null)
+                {
+                    
+                    var debitResult = new DebitCustomerAccountResponse
+                    {
+                        IsSuccessful = debitResponseContent.IsSuccessful,
+                        ResponseMessage = debitResponseContent.ResponseMessage,
+                        ResponseCode = debitResponseContent.ResponseCode,
+                        Reference = debitResponseContent.Reference,
+                    };
 
-                //    var debitResult = new DebitCustomerAccountResponse
-                //    {
-                //        IsSuccessful = debitResponseJson["IsSuccessful"].Value<bool>(),
-                //        ResponseMessage = debitResponseJson["ResponseMessage"]?.ToString(),
-                //        ResponseCode = debitResponseJson["ResponseCode"]?.ToString(),
-                //        Reference = debitResponseJson["Reference"]?.ToString()
-                //    };
+                    _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
 
-                //    _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
+                    if (!debitResult.IsSuccessful)
+                    {
+                        _log.LogError("Debit was not successful: {debitResult.ResponseMessage}");
+                        throw new NotSuccessfulException("Failed to debit customer account: {debitResult.ResponseMessage}");
+                    }
+                    return debitResult;
 
-                //    if (!debitResult.IsSuccessful)
-                //    {
-                //        _log.LogError("Debit was not successful.");
-                //        throw new NotSuccessfulException("Failed to debit customer account.");
-                //    }
+                    //var statusQueryPayload = new
+                    //{
+                    //    RetrievalReference = model.RetrievalReference,
+                    //    TransactionDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                    //    TransactionType = "DEBIT",
+                    //    model.Amount,
+                    //    token = authenticationToken,
+                    //};
 
-                //    var statusQueryPayload = new
-                //    {
-                //        RetrievalReference = model.RetrievalReference,
-                //        TransactionDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                //        TransactionType = "DEBIT",
-                //        model.Amount,
-                //        token = authenticationToken,
-                //    };
+                    //var statusQueryJsonContent = JsonConvert.SerializeObject(statusQueryPayload);
 
-                //    var statusQueryJsonContent = JsonConvert.SerializeObject(statusQueryPayload);
+                    //_log.LogInformation($"Status query payload: {statusQueryJsonContent}");
 
-                //    _log.LogInformation($"Status query payload: {statusQueryJsonContent}");
+                    //var statusQueryResponseContent =
+                    //    await _httpService.Post<DebitCustomerAccountResponse>(statusQueryUrl, headers, statusQueryJsonContent);
 
-                //    var statusQueryResponseContent =
-                //        await _httpService.Post(statusQueryUrl, headers, statusQueryJsonContent);
+                    //if (statusQueryResponseContent != null)
+                    //{
+                    //    //var statusQueryResponseJson =
+                    //    //    JsonConvert.DeserializeObject<JObject>(statusQueryResponseContent);
+                    //    //_log.LogInformation($"Status query response content: {statusQueryResponseJson}");
 
-                //    if (!string.IsNullOrEmpty(statusQueryResponseContent))
-                //    {
-                //        var statusQueryResponseJson =
-                //            JsonConvert.DeserializeObject<JObject>(statusQueryResponseContent);
-                //        _log.LogInformation($"Status query response content: {statusQueryResponseJson}");
+                    //    var statusQueryResult = new DebitCustomerAccountResponse
+                    //    {
+                    //        IsSuccessful = statusQueryResponseContent.IsSuccessful,
+                    //        ResponseMessage = statusQueryResponseContent.ResponseMessage,
+                    //        ResponseCode = statusQueryResponseContent.ResponseCode,
+                    //        Reference = statusQueryResponseContent.Reference
+                    //    };
 
-                //        var statusQueryResult = new DebitCustomerAccountResponse
-                //        {
-                //            IsSuccessful = statusQueryResponseJson["IsSuccessful"].Value<bool>(),
-                //            ResponseMessage = statusQueryResponseJson["ResponseMessage"]?.ToString(),
-                //            ResponseCode = statusQueryResponseJson["ResponseCode"]?.ToString(),
-                //            Reference = debitResponseJson["Reference"]?.ToString(),
-                //        };
-
-                //        return statusQueryResult;
-                //    }
-                //    else
-                //    {
-                //        _log.LogError("Failed to query transaction status.");
-                //        throw new NotSuccessfulException("Failed to query transaction status.");
-                //    }
-                //}
-                //else
-                //{
-                //    _log.LogError("Failed to debit customer account.");
-                //    throw new NotSuccessfulException("Failed to debit customer account.");
-                //}
+                    //    return statusQueryResult;
+                    //}
+                    //else
+                    //{
+                    //    _log.LogError("Failed to query transaction status.");
+                    //    throw new NotSuccessfulException("Failed to query transaction status.");
+                    //}
+                }
+                else
+                {
+                    _log.LogError("Failed to debit customer account: {debitResult.ResponseMessage}");
+                    throw new NotSuccessfulException("Failed to debit customer account: {debitResult.ResponseMessage}");
+                }
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while debiting customer account.");
-                throw new NotSuccessfulException("Failed to debit customer account.");
+                _log.LogError(ex, "An error occurred while debiting customer account: {debitResult.ResponseMessage}");
+                throw new NotSuccessfulException("Failed to debit customer account: {debitResult.ResponseMessage}");
             }
         }
 
+        public async Task<RequeryResponse> StatusQuery(ReQueryRequest model)
+        {
+            try
+            {
+                var authenticationToken = _apiOptions.Zikora.Token;
+                var statusQueryUrl = $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/CoreTransactions/TransactionStatusQuery";
+
+                var headers = BuildHeader();
+
+                var statusQueryPayload = new
+                {
+                    model.RetrievalReference,
+                    TransactionDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                    TransactionType = "DEBIT",
+                    model.Amount,
+                    token = authenticationToken,
+                };
+
+                var statusQueryJsonContent = JsonConvert.SerializeObject(statusQueryPayload);
+
+                _log.LogInformation($"Status query payload: {statusQueryJsonContent}");
+
+                var statusQueryResponseContent = await _httpService.Post<RequeryResponse>(statusQueryUrl, headers, statusQueryJsonContent);
+
+                if (statusQueryResponseContent != null)
+                {
+                    var statusQueryResult = new RequeryResponse
+                    {
+                        Code = statusQueryResponseContent.Code,
+                        Succeeded = statusQueryResponseContent.Succeeded,
+                    };
+
+                    return statusQueryResult;
+                }
+                else
+                {
+                    _log.LogError("Failed to query transaction status: {statusQueryResult.Succeded} ");
+                    throw new NotSuccessfulException("Failed to query transaction status: {statusQueryResult.Succeded}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while querying transaction status: {statusQueryResult.Code}");
+                throw new NotSuccessfulException("Failed to query transaction status: {statusQueryResult.Succeded}");
+            }
+        }
         /** public async Task<IntraBankTransferResponse> IntraBankTransfer(IntraBankTransferRequest model)
          {
              try
