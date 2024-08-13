@@ -103,7 +103,7 @@ namespace USSDMiddleware.Core.Managers
                 {
                     var debitRequest = new DebitCustomerAccountRequest
                     {
-                        RetrievalReference = Guid.NewGuid().ToString("N").ToUpper(),
+                        RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12),
                         AccountNumber = request.SenderAccountNumber,
                         NibssCode = _configuration["ApiOptions:NibssCode"], 
                         Amount = request.Amount.ToString(),
