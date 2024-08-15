@@ -53,9 +53,10 @@ namespace USSDMiddleware.Infrastructure.Repositories
                 if(bill != null)
                 {
                     bill.requeryresponsecode = model.requeryresponsecode;
+                    bill.processorRef = model.processorRef;
+                    
                     await _dbContext.SaveChangesAsync();
-                }
-              
+                }              
 
                 return model;
             }

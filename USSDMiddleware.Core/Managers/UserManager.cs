@@ -134,21 +134,37 @@ namespace USSDMiddleware.Core.Managers
 
         public async Task<AccountBalanceEnquiry> GetAccountBalance(AccountRequest request)
         {
-           
-
             var provider = _providerSelector.GetProvider(request.Provider);
+            var providerId = await provider.GetProviderId(_providerManager);
+
+            var userDetail = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
+            if (!userDetail.Value.TransactionPin.Equals(request.TransactionPin))
+            {
+                return new AccountBalanceEnquiry { Balance= "",
+                Message= "Invalid Transaction Pin",
+                Status =false,
+                
+                };
+            }
+
             var serviceRsp = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber=request.AccountNumber});
 
             if (serviceRsp !=null)
             {
                 return new AccountBalanceEnquiry
                 {
+                    Status=true,
+                    Message = "Successful",
                     Balance = serviceRsp.WithdrawableBalance
                 };
 
 
             }
-            return new AccountBalanceEnquiry();
+            return new AccountBalanceEnquiry
+            {
+                Status = false,
+                Message = "Failed to retrieve balance",
+                    Balance = null };
 
         }
     }

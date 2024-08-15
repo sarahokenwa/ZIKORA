@@ -84,7 +84,8 @@ namespace USSDMiddleware.Api.Controllers
             return Ok(new Response<AccountBalanceEnquiry>()
             {
                 Code = ResponseCodes.Successful,
-                Succeeded = true,
+                Succeeded = result.Status,
+                Message= result.Message,
                 Data = result
             });
         }
