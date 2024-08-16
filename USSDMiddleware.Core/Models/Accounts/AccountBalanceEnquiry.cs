@@ -8,7 +8,8 @@ namespace USSDMiddleware.Core.Models.Accounts
 {
     public class AccountBalanceEnquiry
     {
-
+        public bool Status { get; set; }
+        public string Message { get; set; }
         public string Balance { get; set; }
     }
 }
