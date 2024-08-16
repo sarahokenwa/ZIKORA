@@ -314,7 +314,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var cardRequest = new
                 {
                     request.AccountNumber,
+                    request.PhoneNumber,
                     request.NameOnCard,
+                    request.TransactionPin,
                     request.BIN,
                     request.RequestType,
                     request.DeliveryOption,
