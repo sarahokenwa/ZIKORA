@@ -26,6 +26,7 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<IProviderManager, ProviderManager>();
             services.AddScoped<IValidationLogManager, ValidationLogManager>();
             services.AddScoped<IPayOutManager, PayOutManager>();
+            services.AddScoped<ICardManager, CardManager>();
             
 
 

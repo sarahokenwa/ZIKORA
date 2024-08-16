@@ -51,6 +51,11 @@ namespace USSDMiddleware.Core.Managers
                 string retrievalReference = Guid.NewGuid().ToString();
                 string merchantReference = Guid.NewGuid().ToString();
 
+                // Extract configuration values from appsettings.
+                string glCode = _configuration["ApiOptions:Zikora:GLCode"];
+                string nibssCode = _configuration["ApiOptions:Zikora:NibssCode"];
+                decimal fundTransferFee = decimal.Parse(_configuration["ApiOptions:Zikora:FundTransferFee"]);
+
                 var provider = _providerSelector.GetProvider(request.Provider);
                 var providerId = await provider.GetProviderId(_providerManager);
 
@@ -128,9 +133,9 @@ namespace USSDMiddleware.Core.Managers
                       .With(d => d.Amount = request.Amount)
                       .With(d => d.TransactionPin = request.TransactionPin)
                       .With(d => d.Narration = request.Narration)
-                      .With(d => d.GLCode = _configuration["ApiOptions:GLCode"])
-                      .With(d => d.NibssCode = _configuration["ApiOptions:NibssCode"])
-                      .With(d => d.Fee = decimal.Parse(_configuration["ApiOptions:FundTransferFee"]))
+                      .With(d => d.GLCode = glCode)
+                      .With(d => d.NibssCode = nibssCode)
+                      .With(d => d.Fee = fundTransferFee)
                       .With(d => d.CreatedOn = DateTime.Now)
                       .With(d => d.UpdatedOn = DateTime.Now) 
                       .Build());

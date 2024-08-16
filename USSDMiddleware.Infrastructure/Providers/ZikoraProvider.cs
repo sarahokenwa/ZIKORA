@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using PhoneNumbers;
 using USSDMiddleware.Core.Enums;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.Component;
@@ -86,6 +87,29 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
+        public async Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber)
+        {
+            try
+            {
+                var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByAccountNo2/2")}&accountNumber={accountNumber}";
+                var user = await _httpService.Get<GetUserByAccountNumberResponse>(url, BuildHeader());
+
+                if (user == null)
+                {
+                    _log.LogError("No customer found in the response");
+                    throw new NotFoundException("Failed to retrieve user.");
+                }
+                
+                return Builder<GetUserByAccountNumberResponse>.CreateNew()
+                    .With(g => g.Name = user.Name)
+                    .Build();
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while retrieveing users.");
+                throw new NotSuccessfulException("Failed to retrieve users.");
+            }
+        }
 
         public async Task<AccountCreationResponse> CreateAccount(AccountCreationRequest req)
         {
@@ -276,6 +300,74 @@ namespace USSDMiddleware.Infrastructure.Providers
                 throw new NotSuccessfulException("Failed to debit customer account: {debitResult.ResponseMessage}");
             }
         }
+
+        public async Task<CardResponse> CardRequest(CardRequestExtension request)
+        {
+            try
+            {
+                var authenticationToken = _apiOptions.Zikora.Token;
+                var cardRequestUrl = $"{BuildUrl("/thirdpartyapiservice/apiservice/Cards/RequestCard")}";
+
+
+                var headers = BuildHeader();
+
+                var cardRequest = new
+                {
+                    request.AccountNumber,
+                    request.NameOnCard,
+                    request.BIN,
+                    request.RequestType,
+                    request.DeliveryOption,
+                    request.Identifier,
+                    token = authenticationToken,
+                };
+
+                var jsonContent = JsonConvert.SerializeObject(cardRequest);
+                var cardResponseContent = await _httpService.Post<CardResponse>(cardRequestUrl, headers, jsonContent);
+
+                if (cardResponseContent != null)
+                {
+
+                    var cardResult = new CardResponse
+                    {
+                        IsSuccessful = cardResponseContent.IsSuccessful,
+                        ResponseMessage = cardResponseContent.ResponseMessage,
+                        BatchNo = cardResponseContent.BatchNo,
+                        Identifier = cardResponseContent.Identifier,
+                    };
+
+                    _log.LogInformation($"Card result: {JsonConvert.SerializeObject(cardResult)}");
+
+                    if (!cardResult.IsSuccessful)
+                    {
+                        _log.LogError($"Card request was not successful: {cardResult.ResponseMessage}");
+                        throw new NotSuccessfulException($"Failed to make card request: {cardResult.ResponseMessage}");
+                    }
+
+
+                    _log.LogInformation($"Card result: {JsonConvert.SerializeObject(cardResult)}");
+
+                    if (!cardResult.IsSuccessful)
+                    {
+                        _log.LogError("Card request was not successful: {cardResult.ResponseMessage}");
+                        throw new NotSuccessfulException("Card request failed: {cardResult.ResponseMessage}");
+                    }
+                    return cardResult;
+
+                }
+                else
+                {
+                    _log.LogError("Card request failed: {cardResult.ResponseMessage}");
+                    throw new NotSuccessfulException("Failed to make card request: {cardResult.ResponseMessage}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while making a card request: {cardResult.ResponseMessage}");
+                throw new NotSuccessfulException("Card request failed: {cardResult.ResponseMessage}");
+            }
+        }
+
 
         public async Task<RequeryResponse> StatusQuery(ReQueryRequest model)
         {

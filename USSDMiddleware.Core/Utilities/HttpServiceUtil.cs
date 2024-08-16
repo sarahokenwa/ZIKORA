@@ -33,13 +33,13 @@ namespace USSDMiddleware.Core.Utilities
             var response = await _httpClient.GetAsync(url);
             var rsp = await response.Content.ReadAsStringAsync();
             var result = JsonConvert.DeserializeObject<T>(rsp);
-            _httpClient.Dispose();
+           // _httpClient.Dispose();
             return result;
         }
-
+       
         public async Task<T> Post<T>(string url, IDictionary<string, string>? headers, string jsonContent)
         {
-            if (headers !=null)
+            if (headers != null)
             {
                 foreach (var header in headers)
                 {
@@ -51,7 +51,7 @@ namespace USSDMiddleware.Core.Utilities
             HttpResponseMessage response = await _httpClient.PostAsync(url, content);
             string rsp = await response.Content.ReadAsStringAsync();
             var result = JsonConvert.DeserializeObject<T>(rsp);
-            _httpClient.Dispose();
+           // _httpClient.Dispose();
             return result;
         }
 

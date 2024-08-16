@@ -24,6 +24,10 @@
         public string BaseUrl { get; set; }
         public string Token { get; set; }
         public string WalletId { get; set; }
+        public string RequestType { get; set; }
+        public string BIN { get; set; }
+        public string DeliveryOption { get; set; }
+        public string Identifier { get; set; }
     }
 
 }
