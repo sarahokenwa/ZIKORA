@@ -29,7 +29,8 @@ namespace USSDMiddleware.Api.Controllers
             return Ok(new Response<CardResponse>()
             {
                 Code = ResponseCodes.Successful,
-                Succeeded = true,
+                Succeeded = result.IsSuccessful,
+                Message = result.ResponseMessage,
                 Data = result
             });
         }
