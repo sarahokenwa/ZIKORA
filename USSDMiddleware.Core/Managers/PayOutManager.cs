@@ -1,16 +1,20 @@
 ﻿using FizzWare.NBuilder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Reflection.Emit;
+using System.Runtime;
 using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Enums;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.ExternalServices;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Repositories;
+using USSDMiddleware.Core.Models;
 using USSDMiddleware.Core.Models.PayOut;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Services;
+using USSDMiddleware.Infrastructure.Entities;
 
 namespace USSDMiddleware.Core.Managers
 {
@@ -48,15 +52,16 @@ namespace USSDMiddleware.Core.Managers
         {
             try
             {
-                string retrievalReference = Guid.NewGuid().ToString();
+                var settings = new ZIKORAModelExtension();
+                settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
                 string merchantReference = Guid.NewGuid().ToString();
 
                 // Extract configuration values from appsettings.
-                string glCode = _configuration["ApiOptions:Zikora:GLCode"];
-                string nibssCode = _configuration["ApiOptions:Zikora:NibssCode"];
-                decimal fundTransferFee = decimal.Parse(_configuration["ApiOptions:Zikora:FundTransferFee"]);
+                settings.GLCode = _configuration["ApiOptions:Zikora:GLCode"];
+                settings.NibssCode = _configuration["ApiOptions:Zikora:NibssCode"];
+                settings.FundTransferFee = decimal.Parse(_configuration["ApiOptions:Zikora:FundTransferFee"]);
 
-                var provider = _providerSelector.GetProvider(request.Provider);
+                Interfaces.Providers.IUssdProvider provider = _providerSelector.GetProvider(request.Provider);
                 var providerId = await provider.GetProviderId(_providerManager);
 
                 if (string.IsNullOrEmpty(request.PhoneNumber))
@@ -119,68 +124,23 @@ namespace USSDMiddleware.Core.Managers
                 {
                     var debitRequest = new DebitCustomerAccountRequest
                     {
-                        RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12),
+                        RetrievalReference = settings.RetrievalReference,
                         AccountNumber = request.SenderAccountNumber,
                         Amount = request.Amount.ToString(),
                         Narration = $"Debit Customer account to {request.BeneficiaryAccountName}",
                     };
 
-                    var logdebitRequest = await _customerDebitRepository.LogCustomerDebit(Builder<CustomerDebit>.CreateNew() 
-                      .With(d => d.RetrievalReference = retrievalReference)
-                      .With(d => d.AccountNumber = request.SenderAccountNumber)
-                      .With(d => d.BankCode = request.BankCode)
-                      .With(d => d.ProviderId = providerId)
-                      .With(d => d.Amount = request.Amount)
-                      .With(d => d.TransactionPin = request.TransactionPin)
-                      .With(d => d.Narration = request.Narration)
-                      .With(d => d.GLCode = glCode)
-                      .With(d => d.NibssCode = nibssCode)
-                      .With(d => d.Fee = fundTransferFee)
-                      .With(d => d.CreatedOn = DateTime.Now)
-                      .With(d => d.UpdatedOn = DateTime.Now) 
-                      .Build());
+                    CustomerDebit logdebitRequest = await LogCustomerDebit(request, settings, providerId);
 
-                    var debitResponse = await provider.DebitCustomerAccount(debitRequest);
+                    DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
 
-                    if (debitResponse.Succeeded && debitResponse.Data != null)
-                    {
-                        logdebitRequest.ProcessorRef = debitResponse.Data.Reference;
-                        //Can't access the ResponseDataProperty from here.
-                        //logdebitRequest.responsecode = "Successfull";
-                        
-
-                    }
-                    else
-                    {
-
-                        //Can't access the ResponseDataProperty from here.
-                        // logdebitRequest.responsecode = "Failed";
-                    }
-                    var updateCustomerDebit = await _customerDebitRepository.UpdateCustomerDebit(logdebitRequest, providerId);
+                    
+                    CustomerDebit updateCustomerDebit = await UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
                     
                     if (debitResponse.Succeeded)
                     {
 
-                       var logInstantPayOut = await _instantPayOutRepository.LogInstantPayment(Builder<FundTransfer>.CreateNew() 
-                      .With(u => u.WalletCode = _configuration["ApiOptions:WalletCode"])
-                      .With(u => u.SenderAccountNumber = request.SenderAccountNumber)
-                      .With(u => u.SenderAccountName = request.SenderAccountName)
-                      .With(u => u.BeneficiaryAccountName = request.BeneficiaryAccountName)
-                      .With(u => u.BeneficiaryAccountNumber = request.BeneficiaryAccountNumber)
-                      .With(u => u.BankCode = request.BankCode)
-                      .With(u => u.ProviderId = providerId)
-                      .With(u => u.Amount = request.Amount)
-                      .With(u => u.PhoneNumber = request.PhoneNumber)
-                      .With(u => u.TransactionPin = request.TransactionPin)
-                      .With(u => u.Narration = request.Narration)
-                      .With(u => u.MerchantRef = merchantReference)
-                      .With(u => u.MerchantCharge = decimal.Parse(_configuration["ApiOptions:MerchantCharge"]))
-                      .With(u => u.WebHook = _configuration["ApiOptions:WebHook"])
-                      .With(u => u.WalletType = _configuration["ApiOptions:WalletType"])
-                      .With(u => u.CreatedOn = DateTime.Now)
-                      .With(u => u.UpdatedOn = DateTime.Now) 
-
-                      .Build());
+                        FundTransfer logInstantPayOut = await LogInstantPayment(request, merchantReference, providerId);
 
 
                         var instantPayOut = await _payOutService.InstantPayOut(request);
@@ -218,6 +178,69 @@ namespace USSDMiddleware.Core.Managers
                 _log.LogError(ex, "An error occurred while trying to make instant payment.");
                 throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Instant payout failed.");
             }
+        }
+
+        public async Task<CustomerDebit> LogCustomerDebit(InstantPayOutRequest request, ZIKORAModelExtension settings, string providerId)
+        {
+            return await _customerDebitRepository.LogCustomerDebit(Builder<CustomerDebit>.CreateNew()
+              .With(d => d.RetrievalReference = settings.RetrievalReference)
+              .With(d => d.AccountNumber = request.SenderAccountNumber)
+              .With(d => d.BankCode = request.BankCode)
+              .With(d => d.ProviderId = providerId)
+              .With(d => d.Amount = request.Amount)
+              .With(d => d.TransactionPin = request.TransactionPin)
+              .With(d => d.Narration = request.Narration)
+              .With(d => d.GLCode = settings.GLCode)
+              .With(d => d.NibssCode = settings.NibssCode)
+              .With(d => d.Fee = settings.FundTransferFee)
+              .With(d => d.CreatedOn = DateTime.Now)
+            .With(d => d.UpdatedOn = DateTime.Now)
+            .Build());
+
+        }
+
+        public async Task<CustomerDebit> UpdateCustomerDebit(DebitCustomerAccountResponse debitResponse, CustomerDebit logdebitRequest, string providerId)
+        {
+            if (debitResponse.Succeeded && debitResponse.Data != null)
+            {
+                logdebitRequest.ProcessorRef = debitResponse.Data.Reference;
+                //Can't access the ResponseDataProperty from here.
+                //logdebitRequest.responsecode = "Successfull";
+
+
+            }
+            else
+            {
+
+                //Can't access the ResponseDataProperty from here.
+                // logdebitRequest.responsecode = "Failed";
+            }
+            return await _customerDebitRepository.UpdateCustomerDebit(logdebitRequest, providerId);
+
+        }
+
+        public async Task<FundTransfer> LogInstantPayment(InstantPayOutRequest request, string merchantReference, string providerId)
+        {
+            return await _instantPayOutRepository.LogInstantPayment(Builder<FundTransfer>.CreateNew()
+                     .With(u => u.WalletCode = _configuration["ApiOptions:WalletCode"])
+                     .With(u => u.SenderAccountNumber = request.SenderAccountNumber)
+                     .With(u => u.SenderAccountName = request.SenderAccountName)
+                     .With(u => u.BeneficiaryAccountName = request.BeneficiaryAccountName)
+                     .With(u => u.BeneficiaryAccountNumber = request.BeneficiaryAccountNumber)
+                     .With(u => u.BankCode = request.BankCode)
+                     .With(u => u.ProviderId = providerId)
+                     .With(u => u.Amount = request.Amount)
+                     .With(u => u.PhoneNumber = request.PhoneNumber)
+                     .With(u => u.TransactionPin = request.TransactionPin)
+                     .With(u => u.Narration = request.Narration)
+                     .With(u => u.MerchantRef = merchantReference)
+                     .With(u => u.MerchantCharge = decimal.Parse(_configuration["ApiOptions:MerchantCharge"]))
+                     .With(u => u.WebHook = _configuration["ApiOptions:WebHook"])
+                     .With(u => u.WalletType = _configuration["ApiOptions:WalletType"])
+                     .With(u => u.CreatedOn = DateTime.Now)
+                     .With(u => u.UpdatedOn = DateTime.Now)
+
+                     .Build());
         }
 
         public async Task<RequeryResponse> RequeryPayOut(string reference)

@@ -316,7 +316,6 @@ namespace USSDMiddleware.Infrastructure.Providers
                     request.AccountNumber,
                     request.PhoneNumber,
                     request.NameOnCard,
-                    request.TransactionPin,
                     request.BIN,
                     request.RequestType,
                     request.DeliveryOption,
@@ -340,33 +339,25 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                     _log.LogInformation($"Card result: {JsonConvert.SerializeObject(cardResult)}");
 
+
                     if (!cardResult.IsSuccessful)
                     {
                         _log.LogError($"Card request was not successful: {cardResult.ResponseMessage}");
-                        throw new NotSuccessfulException($"Failed to make card request: {cardResult.ResponseMessage}");
-                    }
-
-
-                    _log.LogInformation($"Card result: {JsonConvert.SerializeObject(cardResult)}");
-
-                    if (!cardResult.IsSuccessful)
-                    {
-                        _log.LogError("Card request was not successful: {cardResult.ResponseMessage}");
-                        throw new NotSuccessfulException("Card request failed: {cardResult.ResponseMessage}");
+                        throw new NotSuccessfulException($"Card request failed: {cardResult.ResponseMessage}");
                     }
                     return cardResult;
 
                 }
                 else
                 {
-                    _log.LogError("Card request failed: {cardResult.ResponseMessage}");
-                    throw new NotSuccessfulException("Failed to make card request: {cardResult.ResponseMessage}");
+                    _log.LogError($"Card request failed: {cardResponseContent.ResponseMessage}");
+                    throw new NotSuccessfulException($"Failed to make card request: {cardResponseContent.ResponseMessage}");
                 }
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while making a card request: {cardResult.ResponseMessage}");
-                throw new NotSuccessfulException("Card request failed: {cardResult.ResponseMessage}");
+                _log.LogError(ex, $"An error occurred while making a card request: {ex.Message}");
+                throw new NotSuccessfulException($"Card request failed: {ex.Message}");
             }
         }
 

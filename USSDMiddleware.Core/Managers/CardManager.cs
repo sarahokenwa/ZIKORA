@@ -67,17 +67,22 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
+                var user = await provider.GetUserByAccountNumber(request.AccountNumber);
+                if (user == null)
+                {
+                    throw new NotFoundException("User not found.");
+                }
+
                 var cardRequestExtension = new CardRequestExtension
                 {
                     AccountNumber = request.AccountNumber,
                     PhoneNumber = request.PhoneNumber,
                     Provider = request.Provider,
-                    TransactionPin = request.TransactionPin,
                     BIN = _configuration["ApiOptions:Zikora:BIN"],
                     RequestType = _configuration["ApiOptions:Zikora:RequestType"],
                     DeliveryOption = _configuration["ApiOptions:Zikora:DeliveryOption"],
                     Identifier = _configuration["ApiOptions:Zikora:Identifier"],
-                    NameOnCard = (await provider.GetUserByAccountNumber(request.AccountNumber)).Name
+                    NameOnCard = user.Name,
                 };
 
                 var cardResponse = await provider.CardRequest(cardRequestExtension);
