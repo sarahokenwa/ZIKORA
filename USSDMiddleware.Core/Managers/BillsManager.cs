@@ -251,7 +251,7 @@ namespace USSDMiddleware.Core.Managers
             var provider = _providerSelector.GetProvider(requestModel.Provider);
             var providerId = await provider.GetProviderId(_providerManager);
             var userDetail = await _userRepository.GetByPhoneNumber(requestModel.CustomerMobile, providerId);
-            var userValidationResult = await ValidateUserDetail(userDetail);
+            var userValidationResult = await ValidateUserDetail(userDetail, providerId);
             if (!userValidationResult.Succeeded)
             {
                 return userValidationResult;
@@ -302,14 +302,14 @@ namespace USSDMiddleware.Core.Managers
         }
 
        // private async Task<VendResponse> ValidateUserDetail(Optional<User> userDetail, ClientVendRequest requestModel)
-        private async Task<VendResponse> ValidateUserDetail(Optional<User> userDetail)
+        private async Task<VendResponse> ValidateUserDetail(Optional<User> userDetail, string providerId)
         {
             if (userDetail == null)
             {
                 return VendResponseWithMessage("Request from an invalid customer mobile");
             }
 
-            bool isPinValid =  await _userManager.ValidateTransactionPin(userDetail.Value.TransactionPin, userDetail.Value.AccountNumber);
+            bool isPinValid =  await _userManager.ValidateTransactionPin(userDetail.Value.TransactionPin, userDetail.Value.PhoneNumber, providerId);
             if (!isPinValid)
             {
                 throw new NotSuccessfulException("Invalid account number or pin.");

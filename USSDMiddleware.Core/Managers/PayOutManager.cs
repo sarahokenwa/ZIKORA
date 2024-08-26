@@ -123,7 +123,7 @@ namespace USSDMiddleware.Core.Managers
 
                //var userDetail = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
                  
-               var transactionPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.SenderAccountNumber);
+               var transactionPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
                if(transactionPin) 
                 {
                         var debitRequest = new DebitCustomerAccountRequest

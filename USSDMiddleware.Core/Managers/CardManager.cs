@@ -69,7 +69,7 @@ namespace USSDMiddleware.Core.Managers
                 }
                 //TODO: Create a table called Account
                 //var user = await _userManager.ValidateTransactionPin(request.TransactionPin);
-                var userExists = await _userRepository.GetUserByAccountNumber(request.AccountNumber);
+                var userExists = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
 
                 if (userExists == null)
                 {
@@ -87,7 +87,7 @@ namespace USSDMiddleware.Core.Managers
                 //    };
                 //}
 
-                var userPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.AccountNumber);
+                var userPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
 
                 var user = await provider.GetUserByAccountNumber(request.AccountNumber);
                 if (user == null)

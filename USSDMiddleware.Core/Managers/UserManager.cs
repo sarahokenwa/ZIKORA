@@ -55,7 +55,7 @@ namespace USSDMiddleware.Core.Managers
                 .With(u => u.CustomerId = serviceRsp.CustomerID)
                 .With(u => u.CustomerName = $"{serviceRsp.LastName}{serviceRsp.OtherNames}")
                 .With(u => u.Salt = Convert.ToBase64String(salt))
-                .With(u => u.AccountNumber = request.TransactionPin.EncryptTransactionPin(salt))
+                .With(u => u.TransactionPin = request.TransactionPin.EncryptTransactionPin(salt))
                 .With(u => u.ProviderId = providerId)
                 .With(u => u.BankVerificationNumber = serviceRsp.BankVerificationNumber)
                 .With(u => u.Address = "NA")
@@ -173,16 +173,16 @@ namespace USSDMiddleware.Core.Managers
 
         }
 
-        public async Task<bool> ValidateTransactionPin(string transactionPin, string accountNumber)
+        public async Task<bool> ValidateTransactionPin(string transactionPin, string phoneNumber, string providerId)
         {
-            var user = await _userRepository.GetUserByAccountNumber(accountNumber);
+            var user = await _userRepository.GetByPhoneNumber(phoneNumber, providerId);
             if (user == null)
             {
                 throw new NotFoundException("Invalid account number or pin.");
             }
-            byte[] salt = Convert.FromBase64String(user.Salt);
+            byte[] salt = Convert.FromBase64String(user.Value.Salt);
             string pin = transactionPin.HashSecret(salt);
-            if (!user.TransactionPin.Equals(pin))
+            if (!user.Value.TransactionPin.Equals(pin))
             {
                 throw new NotSuccessfulException("Invalid account number or pin.");
             }
