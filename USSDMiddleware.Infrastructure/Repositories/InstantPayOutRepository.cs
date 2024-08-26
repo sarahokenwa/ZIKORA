@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Serilog;
 using USSDMiddleware.Core.Entities;
+using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.Repositories;
 using USSDMiddleware.Infrastructure.Data;
 
@@ -31,8 +32,8 @@ namespace USSDMiddleware.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "Failed to save instant payment: {SerializeObject}", JsonConvert.SerializeObject(fundTransfer));
-                throw;
+                _log.LogError(ex, $"Failed to save instant payment: {fundTransfer}", JsonConvert.SerializeObject(fundTransfer));
+                throw new NotSuccessfulException(ex.Message);
             }
         }
 
@@ -53,8 +54,8 @@ namespace USSDMiddleware.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "Failed to update instant payment: {SerializeObject}", JsonConvert.SerializeObject(model));
-                throw;
+                _log.LogError(ex, $"Failed to update instant payment: {model}", JsonConvert.SerializeObject(model));
+                throw new NotSuccessfulException(ex.Message);
             }
         }
 

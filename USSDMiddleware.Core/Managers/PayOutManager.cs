@@ -28,6 +28,7 @@ namespace USSDMiddleware.Core.Managers
         private readonly IConfiguration _configuration;
         private readonly IInstantPayOutRepository _instantPayOutRepository;
         private readonly ICustomerDebitRepository _customerDebitRepository;
+        private readonly IUserManager _userManager;
 
         public PayOutManager(IPayOutService payOutService,
             ILogger<PayOutManager> log,
@@ -36,7 +37,8 @@ namespace USSDMiddleware.Core.Managers
             IProviderManager providerManager,
             IConfiguration configuration,
             IInstantPayOutRepository instantPayOutRepository,
-            ICustomerDebitRepository customerDebitRepository)
+            ICustomerDebitRepository customerDebitRepository,
+            IUserManager userManager)
         {
             _payOutService = payOutService;
             _log = log;
@@ -46,6 +48,7 @@ namespace USSDMiddleware.Core.Managers
             _configuration = configuration;
             _instantPayOutRepository = instantPayOutRepository;
             _customerDebitRepository = customerDebitRepository;
+            _userManager = userManager;
         }
 
         public async Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequest request)
@@ -118,56 +121,96 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
-               var userDetail = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
-
-               if(userDetail.Value.TransactionPin == request.TransactionPin)
+               //var userDetail = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
+                 
+               var transactionPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.SenderAccountNumber);
+               if(transactionPin) 
                 {
-                    var debitRequest = new DebitCustomerAccountRequest
-                    {
-                        RetrievalReference = settings.RetrievalReference,
-                        AccountNumber = request.SenderAccountNumber,
-                        Amount = request.Amount.ToString(),
-                        Narration = $"Debit Customer account to {request.BeneficiaryAccountName}",
-                    };
+                        var debitRequest = new DebitCustomerAccountRequest
+                        {
+                            RetrievalReference = settings.RetrievalReference,
+                            AccountNumber = request.SenderAccountNumber,
+                            Amount = request.Amount.ToString(),
+                            Narration = $"Debit Customer account to {request.BeneficiaryAccountName}",
+                        };
 
-                    CustomerDebit logdebitRequest = await LogCustomerDebit(request, settings, providerId);
+                        CustomerDebit logdebitRequest = await LogCustomerDebit(request, settings, providerId);
 
-                    DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
+                        DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
+
+
+                        CustomerDebit updateCustomerDebit = await UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
+
+                        if (debitResponse.Succeeded)
+                        {
+
+                            FundTransfer logInstantPayOut = await LogInstantPayment(request, merchantReference, providerId);
+
+
+                            var instantPayOut = await _payOutService.InstantPayOut(request);
+                            if (instantPayOut.Succeeded && instantPayOut.Data != null)
+                            {
+                                logInstantPayOut.ProcessorRef = instantPayOut.Data.Data;
+                                instantPayOut.Code = "200";
+                            }
+                            else
+                            {
+                                instantPayOut.Code = "500";
+                            }
+
+                            var updateinstantPayOut = await _instantPayOutRepository.UpdateInstantPayment(logInstantPayOut, providerId);
+                            return instantPayOut;
+
+                        }
+                } 
+               //if(userDetail.Value.TransactionPin == request.TransactionPin)
+               // {
+               //     var debitRequest = new DebitCustomerAccountRequest
+               //     {
+               //         RetrievalReference = settings.RetrievalReference,
+               //         AccountNumber = request.SenderAccountNumber,
+               //         Amount = request.Amount.ToString(),
+               //         Narration = $"Debit Customer account to {request.BeneficiaryAccountName}",
+               //     };
+
+               //     CustomerDebit logdebitRequest = await LogCustomerDebit(request, settings, providerId);
+
+               //     DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
 
                     
-                    CustomerDebit updateCustomerDebit = await UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
+               //     CustomerDebit updateCustomerDebit = await UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
                     
-                    if (debitResponse.Succeeded)
-                    {
+               //     if (debitResponse.Succeeded)
+               //     {
 
-                        FundTransfer logInstantPayOut = await LogInstantPayment(request, merchantReference, providerId);
+               //         FundTransfer logInstantPayOut = await LogInstantPayment(request, merchantReference, providerId);
 
 
-                        var instantPayOut = await _payOutService.InstantPayOut(request);
-                        if (instantPayOut.Succeeded && instantPayOut.Data != null)
-                        {
-                            logInstantPayOut.ProcessorRef = instantPayOut.Data.Data;
-                            instantPayOut.Code = "200"; 
-                        }
-                        else
-                        {
-                            instantPayOut.Code = "500";
-                        }
+               //         var instantPayOut = await _payOutService.InstantPayOut(request);
+               //         if (instantPayOut.Succeeded && instantPayOut.Data != null)
+               //         {
+               //             logInstantPayOut.ProcessorRef = instantPayOut.Data.Data;
+               //             instantPayOut.Code = "200"; 
+               //         }
+               //         else
+               //         {
+               //             instantPayOut.Code = "500";
+               //         }
 
-                        var updateinstantPayOut = await _instantPayOutRepository.UpdateInstantPayment(logInstantPayOut, providerId);
-                        return instantPayOut;
+               //         var updateinstantPayOut = await _instantPayOutRepository.UpdateInstantPayment(logInstantPayOut, providerId);
+               //         return instantPayOut;
 
-                    }
-                }
+               //     }
+               // }
 
                 return new InstantPayOutResponse
                 {
                     Data = new InstantPayOutResponse.DataResponse
                     {
-                        SessionId = "",
+                        SessionId = "null",
                         Succeeded = false,
-                        Code = "",
-                        Message = "",
+                        Code = "Failed",
+                        Message = "Instant payout failed.",
                         Data = null
                     }
                 };
@@ -192,7 +235,7 @@ namespace USSDMiddleware.Core.Managers
               .With(d => d.Narration = request.Narration)
               .With(d => d.GLCode = settings.GLCode)
               .With(d => d.NibssCode = settings.NibssCode)
-              .With(d => d.Fee = settings.FundTransferFee)
+              .With(d => d.Fee = settings.FundTransferFee ?? 0.00m)
               .With(d => d.CreatedOn = DateTime.Now)
             .With(d => d.UpdatedOn = DateTime.Now)
             .Build());

@@ -154,11 +154,11 @@ namespace USSDMiddleware.Infrastructure.Providers
                 throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Bvn is invalid");
             }
 
-            if (!bvnInfoResponse.bvnDetails.phoneNumber.Equals(phoneNo))
-            {
-                throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST,
-                    "Bvn does not belong to this phone number!");
-            }
+            //if (!bvnInfoResponse.bvnDetails.phoneNumber.Equals(phoneNo))
+            //{
+            //    throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST,
+            //        "Bvn does not belong to this phone number!");
+            //}
             if (!bvnInfoResponse.RequestStatus)
             {
 
@@ -328,36 +328,50 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 if (cardResponseContent != null)
                 {
-
                     var cardResult = new CardResponse
                     {
-                        IsSuccessful = cardResponseContent.IsSuccessful,
-                        ResponseMessage = cardResponseContent.ResponseMessage,
-                        BatchNo = cardResponseContent.BatchNo,
-                        Identifier = cardResponseContent.Identifier,
+                        Code = cardResponseContent.Code,
+                        Message = cardResponseContent.Message,
+                        Succeeded = cardResponseContent.Succeeded,
+                        Data = new BatchIssuanceData
+                        {
+                            IsSuccessful = cardResponseContent.Data.IsSuccessful,
+                            ResponseMessage = cardResponseContent.Data.ResponseMessage,
+                            BatchNo = cardResponseContent.Data.BatchNo,
+                            Identifier = cardResponseContent.Data.Identifier
+                        }
                     };
 
+                    //var cardResult = new CardResponse
+                    //{
+                    //    IsSuccessful = cardResponseContent.IsSuccessful,
+                    //    ResponseMessage = cardResponseContent.ResponseMessage,
+                    //    BatchNo = cardResponseContent.BatchNo,
+                    //    Identifier = cardResponseContent.Identifier,
+                    //};
+
                     _log.LogInformation($"Card result: {JsonConvert.SerializeObject(cardResult)}");
+                   
 
-
-                    if (!cardResult.IsSuccessful)
-                    {
-                        _log.LogError($"Card request was not successful: {cardResult.ResponseMessage}");
-                        throw new NotSuccessfulException($"Card request failed: {cardResult.ResponseMessage}");
-                    }
+                    //if (!cardResult.Data.IsSuccessful)
+                    //{
+                    //    _log.LogError($"Card request was not successful: {cardResult.Data.ResponseMessage}");
+                    //    throw new NotSuccessfulException($"Card request failed: {cardResult.Data.ResponseMessage}");
+                    //}
                     return cardResult;
 
                 }
                 else
                 {
-                    _log.LogError($"Card request failed: {cardResponseContent.ResponseMessage}");
-                    throw new NotSuccessfulException($"Failed to make card request: {cardResponseContent.ResponseMessage}");
+                    _log.LogError($"Card request was not successful: {cardResponseContent.Data.ResponseMessage}");
+                    throw new NotSuccessfulException($"Failed to make card request: {cardResponseContent.Data.ResponseMessage}");
                 }
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, $"An error occurred while making a card request: {ex.Message}");
-                throw new NotSuccessfulException($"Card request failed: {ex.Message}");
+                _log.LogError($"An error occurred while making a card request: {ex.Message}");
+                throw new OperationFailedException("An error occurred while making a card request", ex);
+               // throw new NotSuccessfulException($"Card request failed: {ex.Message}");
             }
         }
 
