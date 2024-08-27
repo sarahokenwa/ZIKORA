@@ -1,6 +1,6 @@
-namespace USSDMiddleware.Core.Models;
-
-public class CardModel
+﻿namespace USSDMiddleware.Core.Models
 {
-    
+    public class CardModel
+    {
+    }
 }

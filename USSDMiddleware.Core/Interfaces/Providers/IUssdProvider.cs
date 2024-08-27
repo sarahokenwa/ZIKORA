@@ -8,14 +8,17 @@ namespace USSDMiddleware.Core.Interfaces.Providers
 {
     public interface IUssdProvider
     {
-         Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request);
-         Task<GetUserByPhoneNumberResponse> GetUserByPhoneNumber(string phoneNumber);
-         Enums.Providers ProviderType { get; }
-         Task<AccountCreationResponse> CreateAccount(AccountCreationRequest request);
+        Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request);
+        Task<GetUserByPhoneNumberResponse> GetUserByPhoneNumber(string phoneNumber);
+        Enums.Providers ProviderType { get; }
+        Task<AccountCreationResponse> CreateAccount(AccountCreationRequest request);
 
-         Task<BvnInfoResponse> GetBvnInfo(string bvn, string phoneNo);
-         Task<string > GetProviderId(IProviderManager providerManager);
+        Task<BvnInfoResponse> GetBvnInfo(string bvn, string phoneNo);
+        Task<string> GetProviderId(IProviderManager providerManager);
         Task<BalanceEnquiryResponse> CheckAccountBalance(BalanceEnquiryRequest model);
         Task<List<GetAccountResponse>> GetAccountsByPhoneNumber(string phoneNumber);
+        Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber);
+        Task<DebitCustomerAccountResponse> DebitCustomerAccount(DebitCustomerAccountRequest model);
+        Task<CardResponse> CardRequest(CardRequestExtension request);
     }
 }

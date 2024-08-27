@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using USSDMiddleware.Infrastructure.Data;
 
@@ -11,9 +12,10 @@ using USSDMiddleware.Infrastructure.Data;
 namespace USSDMiddleware.Api.Migrations
 {
     [DbContext(typeof(DataEntities))]
-    partial class DataEntitiesModelSnapshot : ModelSnapshot
+    [Migration("20240813132902_CreateFundTransferAndCustomerDebitTable")]
+    partial class CreateFundTransferAndCustomerDebitTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -142,82 +144,6 @@ namespace USSDMiddleware.Api.Migrations
                     b.HasIndex("ProviderId");
 
                     b.ToTable("BillsPayments");
-                });
-
-            modelBuilder.Entity("USSDMiddleware.Core.Entities.Card", b =>
-                {
-                    b.Property<string>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("AccountNumber")
-                        .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("BIN")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("BatchNo")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<DateTime>("CreatedOn")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DeliveryOption")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("Identifier")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<bool>("IsSuccessful")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("NameOnCard")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("ProcessorRef")
-                        .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("ProviderId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("RequestType")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("ResponseMessage")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("TransactionPin")
-                        .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<DateTime>("UpdatedOn")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProviderId");
-
-                    b.ToTable("Cards");
                 });
 
             modelBuilder.Entity("USSDMiddleware.Core.Entities.CustomerDebit", b =>
@@ -424,10 +350,6 @@ namespace USSDMiddleware.Api.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<string>("Salt")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("TransactionPin")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -510,17 +432,6 @@ namespace USSDMiddleware.Api.Migrations
                 });
 
             modelBuilder.Entity("USSDMiddleware.Core.Entities.BillsPayment", b =>
-                {
-                    b.HasOne("USSDMiddleware.Infrastructure.Entities.Provider", "Provider")
-                        .WithMany()
-                        .HasForeignKey("ProviderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Provider");
-                });
-
-            modelBuilder.Entity("USSDMiddleware.Core.Entities.Card", b =>
                 {
                     b.HasOne("USSDMiddleware.Infrastructure.Entities.Provider", "Provider")
                         .WithMany()

@@ -2,6 +2,7 @@
 using FizzWare.NBuilder;
 using Microsoft.Extensions.Logging;
 using USSDMiddleware.Core.Entities;
+using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Providers;
 using USSDMiddleware.Core.Interfaces.Repositories;
@@ -19,9 +20,10 @@ namespace USSDMiddleware.Core.Managers
         private readonly ILogger<BillsManager> _log;
         private readonly IProviderManager _providerManager;
         private readonly IBillsRepository _billsRepository;
+        private readonly IUserManager _userManager;
 
         public BillsManager(IUserRepository userRepository, ICyberPayProvider cyberPayProvider, ILogger<BillsManager> log,
-            UssdProviderSelector providerSelector, IProviderManager providerManager, IBillsRepository billsRepository)
+            UssdProviderSelector providerSelector, IProviderManager providerManager, IBillsRepository billsRepository, IUserManager userManager)
         {
             _userRepository = userRepository;
             _cyberPayProvider = cyberPayProvider;
@@ -29,6 +31,7 @@ namespace USSDMiddleware.Core.Managers
             _log = log;
             _providerManager = providerManager;
             _billsRepository = billsRepository;
+            _userManager = userManager;
         }
 
         public async Task<BillersResponse> GetBillers(string categoryId)
@@ -239,10 +242,16 @@ namespace USSDMiddleware.Core.Managers
                 return validationResult;
             }
 
+            //bool isPinValid = await _userManager.ValidateTransactionPin(requestModel.TransactionPin, requestModel.DrAccountNumber);
+            //if (!isPinValid) 
+            //{
+            //    throw new NotSuccessfulException("Invalid account number or pin.");
+            //}
+
             var provider = _providerSelector.GetProvider(requestModel.Provider);
             var providerId = await provider.GetProviderId(_providerManager);
             var userDetail = await _userRepository.GetByPhoneNumber(requestModel.CustomerMobile, providerId);
-            var userValidationResult = ValidateUserDetail(userDetail, requestModel);
+            var userValidationResult = await ValidateUserDetail(userDetail, providerId);
             if (!userValidationResult.Succeeded)
             {
                 return userValidationResult;
@@ -292,17 +301,24 @@ namespace USSDMiddleware.Core.Managers
             return new VendResponse { Succeeded = true };
         }
 
-        private VendResponse ValidateUserDetail(Optional<User> userDetail, ClientVendRequest requestModel)
+       // private async Task<VendResponse> ValidateUserDetail(Optional<User> userDetail, ClientVendRequest requestModel)
+        private async Task<VendResponse> ValidateUserDetail(Optional<User> userDetail, string providerId)
         {
             if (userDetail == null)
             {
                 return VendResponseWithMessage("Request from an invalid customer mobile");
             }
 
-            if (!userDetail.Value.TransactionPin.Equals(requestModel.TransactionPin))
+            bool isPinValid =  await _userManager.ValidateTransactionPin(userDetail.Value.TransactionPin, userDetail.Value.PhoneNumber, providerId);
+            if (!isPinValid)
             {
-                return VendResponseWithMessage("Invalid Transaction Pin");
+                throw new NotSuccessfulException("Invalid account number or pin.");
             }
+            //add the validate transaction pin method.
+            //if (!userDetail.Value.AccountNumber.Equals(requestModel.TransactionPin))
+            //{
+            //    return VendResponseWithMessage("Invalid Transaction Pin");
+            //}
 
             return new VendResponse { Succeeded = true };
         }
