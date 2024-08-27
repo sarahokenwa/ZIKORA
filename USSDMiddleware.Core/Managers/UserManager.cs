@@ -35,17 +35,18 @@ namespace USSDMiddleware.Core.Managers
             ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
                 .With(v => v.PhoneNumber = request.PhoneNumber)
                 .Build());
-            
+
             var provider = _providerSelector.GetProvider(request.Provider);
             var providerId = await provider.GetProviderId(_providerManager);
-            
+
             var user = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
-            
+
             if (user.HasValue)
             {
                 throw new AlreadyExistException($"User with {request.PhoneNumber} already exist");
             }
-            
+
+            byte[] salt = Utility.GetSalt();
             var serviceRsp = await provider.GetUserByPhoneNumber(request.PhoneNumber);
             var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
                 .With(u => u.PhoneNumber = request.PhoneNumber)
@@ -53,11 +54,12 @@ namespace USSDMiddleware.Core.Managers
                 .With(u => u.Email = serviceRsp.Email)
                 .With(u => u.CustomerId = serviceRsp.CustomerID)
                 .With(u => u.CustomerName = $"{serviceRsp.LastName}{serviceRsp.OtherNames}")
-                .With(u => u.TransactionPin = request.TransactionPin)
+                .With(u => u.Salt = Convert.ToBase64String(salt))
+                .With(u => u.TransactionPin = request.TransactionPin.EncryptTransactionPin(salt))
                 .With(u => u.ProviderId = providerId)
                 .With(u => u.BankVerificationNumber = serviceRsp.BankVerificationNumber)
                 .With(u => u.Address = "NA")
-                
+
                 .Build());
 
             return Builder<CreateUserResponse>.CreateNew()
@@ -65,9 +67,9 @@ namespace USSDMiddleware.Core.Managers
                 .With(c => c.message = "Successful")
                 .Build();
         }
-        
-        
-        
+
+
+
         public async Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request)
         {
             ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
@@ -77,7 +79,7 @@ namespace USSDMiddleware.Core.Managers
             var provider = _providerSelector.GetProvider(request.Provider);
             var providerId = await provider.GetProviderId(_providerManager);
             var user = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
-           
+
             if (user.HasValue)
             {
                 return new PhoneValidationResponse(true, false, "Successful");
@@ -95,7 +97,7 @@ namespace USSDMiddleware.Core.Managers
             var provider = _providerSelector.GetProvider(request.Provider);
             var serviceRsp = await provider.GetUserByPhoneNumber(request.PhoneNumber);
 
-            if(serviceRsp != null)
+            if (serviceRsp != null)
             {
                 return new UserPhoneNumberDetails
                 {
@@ -121,11 +123,11 @@ namespace USSDMiddleware.Core.Managers
 
             if (serviceRsp.Count > 0)
             {
-               return serviceRsp.Select(x => new UserAccountNumber
+                return serviceRsp.Select(x => new UserAccountNumber
                 {
                     AccountNumber = x.AccountNumber
                 }).ToList();
-              
+
 
             }
             return new List<UserAccountNumber>();
@@ -138,22 +140,24 @@ namespace USSDMiddleware.Core.Managers
             var providerId = await provider.GetProviderId(_providerManager);
 
             var userDetail = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
-            if (!userDetail.Value.TransactionPin.Equals(request.TransactionPin))
-            {
-                return new AccountBalanceEnquiry { Balance= "",
-                Message= "Invalid Transaction Pin",
-                Status =false,
-                
-                };
-            }
-
-            var serviceRsp = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber=request.AccountNumber});
-
-            if (serviceRsp !=null)
+            if (!userDetail.Value.PhoneNumber.Equals(request.TransactionPin))
             {
                 return new AccountBalanceEnquiry
                 {
-                    Status=true,
+                    Balance = "",
+                    Message = "Invalid Transaction Pin",
+                    Status = false,
+
+                };
+            }
+
+            var serviceRsp = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.AccountNumber });
+
+            if (serviceRsp != null)
+            {
+                return new AccountBalanceEnquiry
+                {
+                    Status = true,
                     Message = "Successful",
                     Balance = serviceRsp.WithdrawableBalance
                 };
@@ -164,8 +168,29 @@ namespace USSDMiddleware.Core.Managers
             {
                 Status = false,
                 Message = "Failed to retrieve balance",
-                    Balance = null };
+                Balance = null
+            };
 
+        }
+
+        public async Task<bool> ValidateTransactionPin(string transactionPin, string phoneNumber, string providerId)
+        {
+            var user = await _userRepository.GetByPhoneNumber(phoneNumber, providerId);
+            if (user == null)
+            {
+                throw new NotFoundException("Invalid account number or pin.");
+            }
+            byte[] salt = Convert.FromBase64String(user.Value.Salt);
+            string pin = transactionPin.HashSecret(salt);
+            if (!user.Value.TransactionPin.Equals(pin))
+            {
+                throw new NotSuccessfulException("Invalid account number or pin.");
+            }
+            else
+            {
+                return true;
+            }
+            
         }
     }
 }

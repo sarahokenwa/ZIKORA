@@ -26,6 +26,7 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<IProviderManager, ProviderManager>();
             services.AddScoped<IValidationLogManager, ValidationLogManager>();
             services.AddScoped<IPayOutManager, PayOutManager>();
+            services.AddScoped<ICardManager, CardManager>();
             
 
 
@@ -39,6 +40,9 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<IValidationLogRepository, ValidationLogRepository>();
             services.AddScoped<IProviderRepository, ProviderRepository>();
             services.AddScoped<IBillsRepository, BillsRepository>();
+            services.AddScoped<IInstantPayOutRepository, InstantPayOutRepository>();
+            services.AddScoped<ICustomerDebitRepository, CustomerDebitRepository>();
+            services.AddScoped<ICardRepository, CardRepository>();
 
             //Third party service
             #region service

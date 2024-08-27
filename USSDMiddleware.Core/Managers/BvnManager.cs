@@ -38,7 +38,8 @@ public class BvnManager : IBvnManager
 
         var createdValidationLog = await _validationLogManager.CreateValidationLog(Builder<ValidationLog>.CreateNew()
           .With(v => v.Bvn = bvnInfoResponse.bvnDetails.BVN)
-            .With(v => v.PhoneNumber = bvnInfoResponse.bvnDetails.phoneNumber)
+           // .With(v => v.PhoneNumber = bvnInfoResponse.bvnDetails.phoneNumber)
+            .With(v => v.PhoneNumber = req.PhoneNumber)
             .With(v => v.FirstName = bvnInfoResponse.bvnDetails.FirstName)
             .With(v => v.LastName = bvnInfoResponse.bvnDetails.LastName)
             .With(v => v.Dob = bvnInfoResponse.bvnDetails.DOB)

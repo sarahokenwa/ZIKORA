@@ -64,6 +64,7 @@ namespace USSDMiddleware.Core.Managers
                     throw new BadRequestException(
                         $"A user has already exist for this reference {validationLog.ValidationReference}");
                 }
+                byte[] salt = Utility.GetSalt();
                 var model = BuildUtil.BuildAccountCreationRequest(validationLog);
                 model.Email = request.Email; model.AccountOfficerCode = request.AccountOfficerCode;model.ProductCode = request.ProductCode; model.Gender = request.Gender;
                 var response = await provider.CreateAccount(model);
@@ -74,7 +75,9 @@ namespace USSDMiddleware.Core.Managers
                     .With(u => u.ProviderId = providerId)
                     .With(u => u.CustomerName = response.FullName)
                     .With(u => u.PhoneNumber = validationLog.PhoneNumber)
-                    .With(u => u.TransactionPin = request.TransactionPin)
+                    .With(u => u.Salt = Convert.ToBase64String(salt))
+                    .With(u => u.TransactionPin = request.TransactionPin.EncryptTransactionPin(salt))
+                   // .With(u => u.AccountNumber = request.TransactionPin.EncryptTransactionPin(salt))
                     .With(u => u.DateOfBirth = validationLog.Dob)
                     .With(u => u.BankVerificationNumber = validationLog.Bvn)
                       .With(u => u.Address = "NA")

@@ -66,18 +66,19 @@ namespace USSDMiddleware.Core.Services
         {
             try
             {
-                var nameEnquiryRequest = new NameEnquiryRequest
+               
+                var nameEnquiryRequest = new NameEnquiryRequest 
                 {
-                    AccountNumber = request.AccountNumber,
-                    BankCode = request.BankCode
+                    AccountNumber = request.SenderAccountNumber,
+                    BankCode = request.BankCode,
                 };
 
                 var nameEnquiryResponse = await NameEnquiry(nameEnquiryRequest);
 
                 if (nameEnquiryResponse == null || string.IsNullOrEmpty(nameEnquiryResponse.AccountName))
                 {
-                    _log.LogInformation("Name Enquiry failed. Cannot proceed with instant payout.");
-                    throw new Exception("Failed to retrieve account name for instant payout.");
+                    _log.LogInformation($"Name Enquiry failed. Cannot proceed with instant payout: {JsonConvert.SerializeObject(nameEnquiryResponse)}");
+                    throw new NotSuccessfulException($"Failed to retrieve account name for instant payout: {JsonConvert.SerializeObject(nameEnquiryResponse)}");
                 }
 
                 var credentials = await _cyberPayProvider.GetClientCredentials();
@@ -95,14 +96,14 @@ namespace USSDMiddleware.Core.Services
                 }
                 else
                 {
-                    _log.LogInformation("Instant PayOut Response: null");
-                    throw new Exception("Instant payout failed.");
+                    _log.LogInformation($"Instant PayOut Response: {instantPayOutResponse.Message}");
+                    throw new NotSuccessfulException($"Instant payout failed: {instantPayOutResponse.Message}");
                 }
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred during instant payout");
-                throw new NotSuccessfulException("Failed to complete instant payout.");
+                _log.LogError($"An error occurred during instant payout: {ex.Message}");
+                throw new OperationFailedException("Failed to complete instant payout.", ex);
             }
         }
 
