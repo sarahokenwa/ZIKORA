@@ -14,26 +14,17 @@ namespace USSDMiddleware.Core.Entities
 
         [StringLength(60)]
         public string TransactionPin { get; set; }
-
-        public int Code { get; set; }
         [StringLength(60)]
-        public string BIN { get; set; }
+        public string? BIN { get; set; }
 
         [StringLength(60)]
         public string ProcessorRef { get; set; }
 
         [StringLength(60)]
-        public string Message { get; set; }
+        public string? RequestType { get; set; }
 
         [StringLength(60)]
-        public string Succeeded { get; set; }
-
-        [StringLength(60)]
-        public string RequestType { get; set; }
-
-
-        [StringLength(60)]
-        public string DeliveryOption { get; set; }
+        public string? DeliveryOption { get; set; }
 
         [StringLength(20)]
         public string PhoneNumber { get; set; }
@@ -42,7 +33,7 @@ namespace USSDMiddleware.Core.Entities
         public string NameOnCard { get; set; }
 
         [StringLength(60)]
-        public string BatchNo { get; set; }
+        public string? BatchNo { get; set; }
 
         public bool IsSuccessful { get; set; }
 
@@ -50,7 +41,7 @@ namespace USSDMiddleware.Core.Entities
         public string ResponseMessage { get; set; }
 
         [StringLength(60)]
-        public string Identifier { get; set; }
+        public string? Identifier { get; set; }
         public Provider Provider { get; set; }
         public string ProviderId { get; set; }
         public DateTime CreatedOn { get; set; } = DateTime.Now;

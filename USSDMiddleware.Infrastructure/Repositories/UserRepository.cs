@@ -43,15 +43,15 @@ namespace USSDMiddleware.Infrastructure.Repositories
             }
         }
 
-        public async Task<User> GetUserByAccountNumber(string accountNumber)
-        {
-            var user = await _dbContext.Set<User>().Where(a=>a.AccountNumber == accountNumber).FirstOrDefaultAsync();
-            if(user == null)
-            {
-                throw new NotFoundException("User not found.");
-            }
-            return user;
-        }
+        //public async Task<User> GetUserByAccountNumber(string accountNumber)
+        //{
+        //    var user = await _dbContext.Set<User>().Where(a=>a.AccountNumber == accountNumber).FirstOrDefaultAsync();
+        //    if(user == null)
+        //    {
+        //        throw new NotFoundException("User not found.");
+        //    }
+        //    return user;
+        //}
 
     }
 }

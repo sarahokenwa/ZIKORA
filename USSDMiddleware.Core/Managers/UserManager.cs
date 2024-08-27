@@ -140,7 +140,7 @@ namespace USSDMiddleware.Core.Managers
             var providerId = await provider.GetProviderId(_providerManager);
 
             var userDetail = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
-            if (!userDetail.Value.AccountNumber.Equals(request.TransactionPin))
+            if (!userDetail.Value.PhoneNumber.Equals(request.TransactionPin))
             {
                 return new AccountBalanceEnquiry
                 {

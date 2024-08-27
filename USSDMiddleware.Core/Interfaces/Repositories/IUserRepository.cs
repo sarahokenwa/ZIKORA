@@ -7,6 +7,5 @@ namespace USSDMiddleware.Core.Interfaces.Repositories
     {
         Task<Optional<User>> GetByPhoneNumber(string phoneNumber, string providerId);
         Task<User> CreateUser(User user);
-        Task<User> GetUserByAccountNumber(string accountNumber);
     }
 }

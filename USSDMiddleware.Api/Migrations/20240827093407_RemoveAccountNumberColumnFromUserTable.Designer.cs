@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using USSDMiddleware.Infrastructure.Data;
 
@@ -11,9 +12,10 @@ using USSDMiddleware.Infrastructure.Data;
 namespace USSDMiddleware.Api.Migrations
 {
     [DbContext(typeof(DataEntities))]
-    partial class DataEntitiesModelSnapshot : ModelSnapshot
+    [Migration("20240827093407_RemoveAccountNumberColumnFromUserTable")]
+    partial class RemoveAccountNumberColumnFromUserTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -163,6 +165,9 @@ namespace USSDMiddleware.Api.Migrations
                         .HasMaxLength(60)
                         .HasColumnType("nvarchar(60)");
 
+                    b.Property<int>("Code")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("datetime2");
 
@@ -176,6 +181,11 @@ namespace USSDMiddleware.Api.Migrations
 
                     b.Property<bool>("IsSuccessful")
                         .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
 
                     b.Property<string>("NameOnCard")
                         .IsRequired()
@@ -204,6 +214,11 @@ namespace USSDMiddleware.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Succeeded")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
 
                     b.Property<string>("TransactionPin")
                         .IsRequired()

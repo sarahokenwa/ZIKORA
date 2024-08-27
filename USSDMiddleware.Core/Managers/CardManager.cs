@@ -54,8 +54,8 @@ namespace USSDMiddleware.Core.Managers
                 {
                     return new CardResponse
                     {
-                        Message = "Phone number is required",
-                        Succeeded = false
+                        ResponseMessage = "Phone number is required",
+                        IsSuccessful = false
                     };
                 }
 
@@ -63,8 +63,8 @@ namespace USSDMiddleware.Core.Managers
                 {
                     return new CardResponse
                     {
-                      Message = "Account number is required",
-                      Succeeded = false
+                      ResponseMessage = "Account number is required",
+                      IsSuccessful = false
                     };
                 }
                 //TODO: Create a table called Account
@@ -75,18 +75,7 @@ namespace USSDMiddleware.Core.Managers
                 {
                     throw new NotFoundException("Invalid account number.");
                 }
-                //var userDetail = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
-                ////TODO: Encrypt transaction pin when it is being stored in the db(User Table)
-                ////TODO: Have a method that does check for transaction pin.
-                //if (userDetail.Value.TransactionPin != request.TransactionPin)
-                //{
-                //    return new CardResponse
-                //    {
-                //        ResponseMessage = "Invalid Transaction Pin",
-                //        IsSuccessful = false
-                //    };
-                //}
-
+                
                 var userPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
 
                 var user = await provider.GetUserByAccountNumber(request.AccountNumber);
@@ -94,8 +83,6 @@ namespace USSDMiddleware.Core.Managers
                 {
                     throw new NotFoundException("User not found.");
                 }
-                //TODO: Log the card request, response and update the db.
-                //TODO: AccNum, PhoneNum, NameOnCard, CreatedOn, BatchNo, IsSuccessful, ResponseMessage, Identifier,  Contain everything in the card request and response[CardTable] 
                 var cardRequestExtension = new CardRequestExtension
                 {
                     AccountNumber = request.AccountNumber,
@@ -112,25 +99,14 @@ namespace USSDMiddleware.Core.Managers
 
 
                 CardResponse cardResponse = await provider.CardRequest(cardRequestExtension);
-                if (cardResponse == null || !cardResponse.Succeeded)
+                if (cardResponse == null || !cardResponse.IsSuccessful)
                 {
                     throw new NotSuccessfulException("Card response is empty or missing.");
                 }
 
                 Card updateCardRequest = await UpdateCardRequest(cardResponse, logCardRequest, providerId);
 
-                //if (!cardResponse.IsSuccessful)
-                //{
-                //    _log.LogError($"Failed to make card request: {cardResponse.ResponseMessage}", cardResponse.ResponseMessage);
-                //    return new CardResponse
-                //    {
-                //        ResponseMessage = "Failed to make card request: " + cardResponse.ResponseMessage,
-                //        IsSuccessful = false
-                //    };
-                //}
-                //TODO: log when it is successful.
-                Card logCardResponse = await LogCardResponse(cardResponse);
-
+                
                 return cardResponse;
             }
             catch (Exception ex)
@@ -148,10 +124,10 @@ namespace USSDMiddleware.Core.Managers
               .With(d => d.TransactionPin = request.TransactionPin)
               .With(d => d.ProviderId = providerId)
               .With(d => d.NameOnCard = request.NameOnCard)
-              .With(u => u.BIN = _configuration["ApiOptions:BIN"])
-              .With(u => u.RequestType = _configuration["ApiOptions:RequestType"])
-              .With(u => u.DeliveryOption = _configuration["ApiOptions:DeliveryOption"])
-              .With(u => u.Identifier = _configuration["ApiOptions:Identifier"])
+              .With(u => u.BIN = _configuration["ApiOptions:Zikora:BIN"])
+              .With(u => u.RequestType = _configuration["ApiOptions:Zikora:RequestType"])
+              .With(u => u.DeliveryOption = _configuration["ApiOptions:Zikora:DeliveryOption"])
+              .With(u => u.Identifier = _configuration["ApiOptions:Zikora:Identifier"])
               .With(d => d.CreatedOn = DateTime.Now)
               .With(d => d.UpdatedOn = DateTime.Now)
             .Build());
@@ -159,17 +135,18 @@ namespace USSDMiddleware.Core.Managers
 
         public async Task<Card> UpdateCardRequest(CardResponse cardResponse, Card logCardRequest, string providerId)
         {
-            if (cardResponse.Succeeded && cardResponse.Data != null)
+            if (cardResponse.IsSuccessful && cardResponse != null)
             {
-                logCardRequest.ProcessorRef = cardResponse.Data.BatchNo;
-                logCardRequest.Identifier = cardResponse.Data.Identifier;
-                logCardRequest.IsSuccessful = cardResponse.Data.IsSuccessful;
-                logCardRequest.ResponseMessage = cardResponse.Data.ResponseMessage;
+                logCardRequest.ProcessorRef = cardResponse.BatchNo;
+                logCardRequest.Identifier = cardResponse.Identifier;
+                logCardRequest.IsSuccessful = cardResponse.IsSuccessful;
+                logCardRequest.ResponseMessage = cardResponse.ResponseMessage;
+                logCardRequest.BatchNo = cardResponse.BatchNo;
+                
             }
             else
             {
-                // logdebitRequest.responsecode = "Failed";
-                logCardRequest.IsSuccessful = cardResponse.Data.IsSuccessful;
+                logCardRequest.IsSuccessful = cardResponse.IsSuccessful;
             }
             return await _cardRepository.UpdateCardRequest(logCardRequest, providerId);
 
@@ -178,10 +155,10 @@ namespace USSDMiddleware.Core.Managers
         public async Task<Card> LogCardResponse(CardResponse cardResponse)
         {
             return await _cardRepository.LogCardResponse(Builder<Card>.CreateNew()
-              .With(c => c.IsSuccessful = cardResponse.Data.IsSuccessful)
-              .With(c => c.ResponseMessage = cardResponse.Data.ResponseMessage)
-              .With(c => c.BatchNo = cardResponse.Data.BatchNo)
-              .With(c => c.Identifier = cardResponse.Data.Identifier)
+              .With(c => c.IsSuccessful = cardResponse.IsSuccessful)
+              .With(c => c.ResponseMessage = cardResponse.ResponseMessage)
+              .With(c => c.BatchNo = cardResponse.BatchNo)
+              .With(c => c.Identifier = cardResponse.Identifier)
               .Build());
         }
     }

@@ -33,7 +33,7 @@ namespace USSDMiddleware.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, $"Failed to make card request: {card}", JsonConvert.SerializeObject(card));
+                _log.LogError($"Failed to make card request: {card}", JsonConvert.SerializeObject(card), ex);
                 throw new NotSuccessfulException(ex.Message);
             }
         }
@@ -50,9 +50,7 @@ namespace USSDMiddleware.Infrastructure.Repositories
                     updateCardRequest.IsSuccessful = model.IsSuccessful;
                     updateCardRequest.Identifier  = model.Identifier;
                     updateCardRequest.ResponseMessage = model.ResponseMessage;
-                    updateCardRequest.Succeeded = model.Succeeded;
-                    updateCardRequest.Code = model.Code;
-                    updateCardRequest.Message = model.Message;
+                    updateCardRequest.ProviderId = providerId;
 
                     await _dbContext.SaveChangesAsync();
                 }

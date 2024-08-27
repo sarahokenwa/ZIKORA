@@ -22,7 +22,6 @@ namespace USSDMiddleware.Core.Entities
         public string Email { get; set; }
         public string BankVerificationNumber { get; set; }
         public string DateOfBirth { get; set; }
-        public string AccountNumber { get; set; }
         public string Salt { get; set; }
         public string TransactionPin { get; set; }
         public DateTime CreatedOn { get; set; } = DateTime.Now;

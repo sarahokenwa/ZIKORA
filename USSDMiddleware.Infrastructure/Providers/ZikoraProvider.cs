@@ -326,52 +326,33 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var jsonContent = JsonConvert.SerializeObject(cardRequest);
                 var cardResponseContent = await _httpService.Post<CardResponse>(cardRequestUrl, headers, jsonContent);
 
-                if (cardResponseContent != null)
+                if (cardResponseContent != null && cardResponseContent.IsSuccessful)
                 {
                     var cardResult = new CardResponse
                     {
-                        Code = cardResponseContent.Code,
-                        Message = cardResponseContent.Message,
-                        Succeeded = cardResponseContent.Succeeded,
-                        Data = new BatchIssuanceData
-                        {
-                            IsSuccessful = cardResponseContent.Data.IsSuccessful,
-                            ResponseMessage = cardResponseContent.Data.ResponseMessage,
-                            BatchNo = cardResponseContent.Data.BatchNo,
-                            Identifier = cardResponseContent.Data.Identifier
-                        }
+                        IsSuccessful = cardResponseContent.IsSuccessful,
+                        ResponseMessage = cardResponseContent.ResponseMessage,
+                        BatchNo = cardResponseContent.BatchNo,
+                        Identifier = cardResponseContent.Identifier,
                     };
-
-                    //var cardResult = new CardResponse
-                    //{
-                    //    IsSuccessful = cardResponseContent.IsSuccessful,
-                    //    ResponseMessage = cardResponseContent.ResponseMessage,
-                    //    BatchNo = cardResponseContent.BatchNo,
-                    //    Identifier = cardResponseContent.Identifier,
-                    //};
 
                     _log.LogInformation($"Card result: {JsonConvert.SerializeObject(cardResult)}");
                    
-
-                    //if (!cardResult.Data.IsSuccessful)
-                    //{
-                    //    _log.LogError($"Card request was not successful: {cardResult.Data.ResponseMessage}");
-                    //    throw new NotSuccessfulException($"Card request failed: {cardResult.Data.ResponseMessage}");
-                    //}
                     return cardResult;
 
                 }
                 else
                 {
-                    _log.LogError($"Card request was not successful: {cardResponseContent.Data.ResponseMessage}");
-                    throw new NotSuccessfulException($"Failed to make card request: {cardResponseContent.Data.ResponseMessage}");
+                    var errorMessage = cardResponseContent?.ResponseMessage ?? "An error occured while requesting for card.";
+                    _log.LogError($"Card request failed: {errorMessage}");
+                    throw new NotSuccessfulException(errorMessage);
+                    
                 }
             }
             catch (Exception ex)
             {
                 _log.LogError($"An error occurred while making a card request: {ex.Message}");
-                throw new OperationFailedException("An error occurred while making a card request", ex);
-               // throw new NotSuccessfulException($"Card request failed: {ex.Message}");
+                throw new OperationFailedException($"Failed to make card request: {ex.Message}", ex);
             }
         }
 
