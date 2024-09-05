@@ -3,13 +3,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using PhoneNumbers;
 using USSDMiddleware.Core.Enums;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.Component;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Providers;
 using USSDMiddleware.Core.Models;
+using USSDMiddleware.Core.Models.Accounts;
 using USSDMiddleware.Core.Models.Providers.Zikora;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
@@ -116,6 +116,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 var url = BuildUrl($"BankOneWebAPI/api/Account/CreateAccountQuick/2");
+
                 var rsp = await _httpService.Post<JObject>(url, BuildHeader(), JsonConvert.SerializeObject(req));
                 var isSuccess = rsp["IsSuccessful"]!.Value<bool>();
                 if (!isSuccess)
@@ -257,34 +258,23 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                     var debitResult = new DebitCustomerAccountResponse
                     {
-                        Succeeded = debitResponseContent.Succeeded,
-                        Message = debitResponseContent.Message,
-                        Code = debitResponseContent.Code,
-                        Data = new DebitCustomerAccountResponse.ResponseData
-                        {
-                            IsSuccessful = debitResponseContent.Data.IsSuccessful,
-                            ResponseMessage = debitResponseContent.Data.ResponseMessage,
-                            ResponseCode = debitResponseContent.Data.ResponseCode,
-                            Reference = debitResponseContent.Data.Reference
-                        }
+                            IsSuccessful = debitResponseContent.IsSuccessful,
+                            ResponseMessage = debitResponseContent.ResponseMessage,
+                            ResponseCode = debitResponseContent.ResponseCode,
+                            Reference = debitResponseContent.Reference
+                       
                     };
 
                     _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
 
-                    if (!debitResult.Data.IsSuccessful)
+                    if (!debitResult.IsSuccessful)
                     {
-                        _log.LogError($"Debit was not successful: {debitResult.Data.ResponseMessage}");
-                        throw new NotSuccessfulException($"Failed to debit customer account: {debitResult.Data.ResponseMessage}");
+                        _log.LogError($"Debit was not successful: {debitResult.ResponseMessage}");
+                        throw new NotSuccessfulException($"Failed to debit customer account: {debitResult.ResponseMessage}");
                     }
-
 
                     _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
 
-                    if (!debitResult.Data.IsSuccessful)
-                    {
-                        _log.LogError("Debit was not successful: {debitResult.ResponseMessage}");
-                        throw new NotSuccessfulException("Failed to debit customer account: {debitResult.ResponseMessage}");
-                    }
                     return debitResult;
 
                 }
@@ -403,6 +393,319 @@ namespace USSDMiddleware.Infrastructure.Providers
                 throw new NotSuccessfulException("Failed to query transaction status: {statusQueryResult.Succeded}");
             }
         }
+
+        public async Task<BlockAccountResponse> BlockAccount(BlockAccountRequest request)
+        {
+            try
+            {
+                var token = _apiOptions.Zikora.Token;
+                var blockAccountUrl = $"{BuildUrl("/thirdpartyapiservice/apiservice/Account/ActivatePND")}";
+
+
+                var headers = BuildHeader();
+
+                var blockAccount = new
+                {
+                    request.AccountNo,
+                    authenticationCode = token,
+                };
+
+                var jsonContent = JsonConvert.SerializeObject(blockAccount);
+                var response = await _httpService.Post<BlockAccountResponse>(blockAccountUrl, headers, jsonContent);
+
+                if (response.ResponseStatus == "Successful")
+                {
+                    var blockAccountResponse = new BlockAccountResponse
+                    {
+                        RequestStatus = response.RequestStatus,
+                        ResponseDescription = response.ResponseDescription,
+                        ResponseStatus = response.ResponseStatus,
+                    };
+
+                    _log.LogInformation($"Block account result: {JsonConvert.SerializeObject(blockAccountResponse)}");
+
+                    return blockAccountResponse;
+
+                }
+                else
+                {
+                    var errorMessage = response?.ResponseDescription ?? "An error occured while blocking account.";
+                    _log.LogError($"Account blocking was unsuccessful: {errorMessage}");
+                    throw new NotSuccessfulException(errorMessage);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError($"Account blocking was unsuccessful: {ex.Message}");
+                throw new OperationFailedException($"Failed to block account:{ex.Message}", ex);
+            }
+        }
+
+        public async Task<BlockAccountResponse> DeactivatePND(BlockAccountRequest request)
+        {
+            try
+            {
+                var token = _apiOptions.Zikora.Token;
+                var deactivatePostNoDebitUrl = $"{BuildUrl("/thirdpartyapiservice/apiservice/Account/DeactivatePND")}";
+
+
+                var headers = BuildHeader();
+
+                var deactivatePostNoDebit = new
+                {
+                    request.AccountNo,
+                    authenticationCode = token,
+                };
+
+                var jsonContent = JsonConvert.SerializeObject(deactivatePostNoDebit);
+                var response = await _httpService.Post<BlockAccountResponse>(deactivatePostNoDebitUrl, headers, jsonContent);
+
+                if (response.ResponseStatus == "Successful")
+                {
+                    var deactivatePostNoDebitResponse = new BlockAccountResponse
+                    {
+                        RequestStatus = response.RequestStatus,
+                        ResponseDescription = response.ResponseDescription,
+                        ResponseStatus = response.ResponseStatus,
+                    };
+
+                    _log.LogInformation($"PND deactivation result: {JsonConvert.SerializeObject(deactivatePostNoDebitResponse)}");
+
+                    return deactivatePostNoDebitResponse;
+
+                }
+                else
+                {
+                    var errorMessage = response?.ResponseDescription ?? "An error occured while deactivating PND.";
+                    _log.LogError($"PND deactivation failed: {errorMessage}");
+                    throw new NotSuccessfulException(errorMessage);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError($"PND deactivation failed: {ex.Message}");
+                throw new OperationFailedException($"PND deactivation failed: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<BlockAccountResponse> VerifyPNDStatus(BlockAccountRequest request)
+        {
+            try
+            {
+                var token = _apiOptions.Zikora.Token;
+                var verifyAccountPNDStatusUrl = $"{BuildUrl("/thirdpartyapiservice/apiservice/Account/CheckPNDStatus")}";
+
+
+                var headers = BuildHeader();
+
+                var verifyAccountPNDStatus = new
+                {
+                    request.AccountNo,
+                    authenticationCode = token,
+                };
+
+                var jsonContent = JsonConvert.SerializeObject(verifyAccountPNDStatus);
+                var response = await _httpService.Post<BlockAccountResponse>(verifyAccountPNDStatusUrl, headers, jsonContent);
+
+                if (response.ResponseStatus == "Active")
+                {
+                    var verifyAccountPNDStatusResponse = new BlockAccountResponse
+                    {
+                        RequestStatus = response.RequestStatus,
+                        ResponseDescription = response.ResponseDescription,
+                        ResponseStatus = response.ResponseStatus,
+                    };
+
+                    _log.LogInformation($"Verify PND status result: {JsonConvert.SerializeObject(verifyAccountPNDStatusResponse)}");
+
+                    return verifyAccountPNDStatusResponse;
+
+                }
+                else
+                {
+                    var errorMessage = response?.ResponseDescription ?? "An error occured while verifying PND status.";
+                    _log.LogError($"PND verification failed: {errorMessage}");
+                    throw new NotSuccessfulException(errorMessage);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError($"PND verification failed: {ex.Message}");
+                throw new OperationFailedException($"PND verification failed: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<GetCustomerCardResponse> GetCustomerCards(GetCustomerCardRequest request)
+        {
+            try
+            {
+                var authenticationToken = _apiOptions.Zikora.Token;
+                var includeInactiveCards = true;
+                var getCustomerCardsUrl = $"{BuildUrl("/thirdpartyapiservice/apiservice/Cards/RetrieveCustomerCards")}";
+
+
+                var headers = BuildHeader();
+
+                var getCustomerCards = new
+                {
+                    request.AccountNo,
+                    IncludeInactiveCards = includeInactiveCards,
+                    token = authenticationToken,
+                };
+
+                var jsonContent = JsonConvert.SerializeObject(getCustomerCards);
+                var response = await _httpService.Post<GetCustomerCardResponse>(getCustomerCardsUrl, headers, jsonContent);
+
+                if (response.IsSuccessful)
+                {
+                    var getCustomerCardsResponse = new GetCustomerCardResponse
+                    {
+                        IsSuccessful = response.IsSuccessful,
+                        ResponseDescription = response.ResponseDescription,
+                        Cards = response.Cards.Select(card => new Card
+                        {
+                            AccountNumber = card.AccountNumber,
+                            CardPAN = card.CardPAN,
+                            LinkedDate = card.LinkedDate,
+                            ExpiryDate = card.ExpiryDate,
+                            SerialNo = card.SerialNo,
+                            NameOnCard = card.NameOnCard,
+                            Status = card.Status
+                        }).ToArray()
+                    };
+
+                    _log.LogInformation($"Get customer card result: {JsonConvert.SerializeObject(response)}");
+
+                    return response;
+
+                }
+                else
+                {
+                    var errorMessage = response?.ResponseDescription ?? "An error occured while retrieving customer card result.";
+                    _log.LogError($"Get customer card result: {errorMessage}");
+                    throw new NotSuccessfulException(errorMessage);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError($"Get customer card result: {ex.Message}");
+                throw new OperationFailedException($"Get customer card result: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<FreezeCardResponse> FreezeCard(FreezeCardRequest request)
+        {
+            try
+            {
+                var token = _apiOptions.Zikora.Token;
+                var freezeCardUrl = $"{BuildUrl("/thirdpartyapiservice/apiservice/Cards/Freeze")}";
+
+
+                var headers = BuildHeader();
+
+                var freezeCard = new
+                {
+                    request.SerialNo,
+                    request.Reference,
+                    request.AccountNumber,
+                    request.Reason,
+                    token,
+                };
+
+                var jsonContent = JsonConvert.SerializeObject(freezeCard);
+                var response = await _httpService.Post<FreezeCardResponse>(freezeCardUrl, headers, jsonContent);
+
+                if (response.IsSuccessful)
+                {
+                    var freezeCardResponse = new FreezeCardResponse
+                    {
+                        IsSuccessful = response.IsSuccessful,
+                        ResponseCode = response.ResponseCode,
+                        ResponseMessage = response.ResponseMessage,
+                        SerialNo = response.SerialNo,
+                        TransactionReference = response.TransactionReference,
+                    };
+
+                    _log.LogInformation($"Freeze card result: {JsonConvert.SerializeObject(freezeCardResponse)}");
+
+                    return freezeCardResponse;
+
+                }
+                else
+                {
+                    var errorMessage = response?.ResponseMessage ?? "An error occured while freezing account.";
+                    _log.LogError($"The attempt to freeze the card was unsuccessful.: {errorMessage}");
+                    throw new NotSuccessfulException(errorMessage);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError($"The attempt to freeze the card was unsuccessful: {ex.Message}");
+                throw new OperationFailedException($"The attempt to freeze the card was unsuccessful:{ex.Message}", ex);
+            }
+        }
+
+        public async Task<UnFreezeCardResponse> UnFreezeCard(UnFreezeCardRequest request)
+        {
+            try
+            {
+                var token = _apiOptions.Zikora.Token;
+                var unFreezeCardUrl = $"{BuildUrl("/thirdpartyapiservice/apiservice/Cards/UnFreeze")}";
+
+
+                var headers = BuildHeader();
+
+                var UnfreezeCard = new
+                {
+                    request.SerialNo,
+                    request.Reason,
+                    request.AccountNumber,
+                    request.Reference,
+                    token,
+                };
+
+                var jsonContent = JsonConvert.SerializeObject(UnfreezeCard);
+                var response = await _httpService.Post<UnFreezeCardResponse>(unFreezeCardUrl, headers, jsonContent);
+
+                if (response.IsSuccessful)
+                {
+                    var unFreezeCardResponse = new UnFreezeCardResponse
+                    {
+                        IsSuccessful = response.IsSuccessful,
+                        ResponseMessage = response.ResponseMessage,
+                        Reference = response.Reference,
+                    };
+
+                    _log.LogInformation($"UnFreeze card result: {JsonConvert.SerializeObject(unFreezeCardResponse)}");
+
+                    return unFreezeCardResponse;
+
+                }
+                else
+                {
+                    var errorMessage = response?.ResponseMessage ?? "An error occured while unfreezing card.";
+                    _log.LogError($"The attempt to unfreeze the card was unsuccessful.: {errorMessage}");
+                    throw new NotSuccessfulException(errorMessage);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError($"The attempt to unfreeze the card was unsuccessful: {ex.Message}");
+                throw new OperationFailedException($"The attempt to unfreeze the card was unsuccessful:{ex.Message}", ex);
+            }
+        }
+
+
+
+
+
+
         /** public async Task<IntraBankTransferResponse> IntraBankTransfer(IntraBankTransferRequest model)
          {
              try
@@ -551,62 +854,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                   _log.LogError(ex, "An error occurred while freezing account");
                   throw new NotSuccessfulException("Failed to freeze account.");
               }
-          }
+          }**/
 
-           public async Task<GetCustomerCardResponse> GetCustomerCards(GetCustomerCardRequest request)
-           {
-               try
-               {
-                   var token = _apiOptions.Zikora.Token;
-                   var includeInactiveCards = false;
-                   var url = $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/Cards/RetrieveCustomerCards";
 
-                   var headers = BuildHeader();
-
-                   var customerCardsPayload = new
-                   {
-                       request.AccountNo,
-                       Token = token,
-                       IncludeInactiveCards = includeInactiveCards
-                   };
-
-                   var jsonContent = JsonConvert.SerializeObject(customerCardsPayload);
-
-                   var responseContent = await _httpService.Post(url, headers, jsonContent);
-
-                   if (!string.IsNullOrEmpty(responseContent))
-                   {
-                       var responseJson = JsonConvert.DeserializeObject<JObject>(responseContent);
-                       _log.LogInformation($"Response content: {responseContent}");
-
-                       var cardResponse = new GetCustomerCardResponse
-                       {
-                           isSuccessful = responseJson["isSuccessful"].Value<bool>(),
-                           ResponseDescription = responseJson["ResponseDescription"]?.ToString(),
-                           Cards = responseJson["Cards"]?.ToObject<List<CardModel>>(),
-                       };
-
-                       if (!cardResponse.isSuccessful)
-                       {
-                           _log.LogError("The attempt to retrieve cards was not successful.");
-                           throw new NotSuccessfulException("Failed to retrieve card.");
-                       }
-
-                       return cardResponse;
-                   }
-                   else
-                   {
-                       _log.LogError("The attempt to retrieve cards was not successful.");
-                       throw new NotSuccessfulException("Failed to retrieve cards.");
-                   }
-               }
-               catch (Exception ex)
-               {
-                   _log.LogError(ex, "An error occurred while retreiving cards.");
-                   throw new NotSuccessfulException("Failed to retrieve cards.");
-               }
-           }
-           **/
 
 
 

@@ -9,9 +9,6 @@
         public string? WalletCode { get; set; } 
         public string? MerchantCharge { get; set;}
         public string? WebHook { get; set; }
-        //public string BIN {  get; set; }
-        //public string RequestType { get; set; }
-        //public string DeliveryOption { get; set; }
-        //public string Identifier { get; set; }
+        public string? BankCode { get; set; }
     }
 }

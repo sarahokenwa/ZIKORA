@@ -16,5 +16,6 @@
         public string LastName { get; set; }
         public string? OtherNames { get; set; }
         public string DOB { get; set; }
+        public string Email { get; set; }
     }
 }
