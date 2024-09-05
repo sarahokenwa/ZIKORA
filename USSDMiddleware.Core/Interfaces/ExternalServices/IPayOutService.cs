@@ -8,7 +8,7 @@ namespace USSDMiddleware.Core.Interfaces.ExternalServices
     public interface IPayOutService
     {
         Task<NameEnquiryResponse> NameEnquiry(NameEnquiryRequest request);
-        Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequest request);
+        Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequest request, string merchantREference);
         Task<RequeryResponse> RequeryPayOut(string reference);
         Task<BankResponse> Get();
     }

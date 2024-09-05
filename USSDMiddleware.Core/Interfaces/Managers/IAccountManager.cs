@@ -8,5 +8,8 @@ namespace USSDMiddleware.Core.Interfaces.Managers
     {
         Task<CreateAccountResponse> CreateAccount(CreateAccountRequest newUser);
         Task<NameEnquiryResponse> NameEnquiry(NameEnquiryRequest request);
+        Task<BlockAccountResponse> BlockAccount(BlockAccountRequest request);
+        Task<BlockAccountResponse> DeactivatePND(BlockAccountRequest request);
+        Task<BlockAccountResponse> VerifyPNDStatus(BlockAccountRequest request);
     }
 }

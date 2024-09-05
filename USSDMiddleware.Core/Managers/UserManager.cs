@@ -68,8 +68,6 @@ namespace USSDMiddleware.Core.Managers
                 .Build();
         }
 
-
-
         public async Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request)
         {
             ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
@@ -128,10 +126,8 @@ namespace USSDMiddleware.Core.Managers
                     AccountNumber = x.AccountNumber
                 }).ToList();
 
-
             }
             return new List<UserAccountNumber>();
-
         }
 
         public async Task<AccountBalanceEnquiry> GetAccountBalance(AccountRequest request)
@@ -178,13 +174,15 @@ namespace USSDMiddleware.Core.Managers
             var user = await _userRepository.GetByPhoneNumber(phoneNumber, providerId);
             if (user == null)
             {
-                throw new NotFoundException("Invalid account number or pin.");
+                throw new NotFoundException("Invalid phone number or pin.");
             }
             byte[] salt = Convert.FromBase64String(user.Value.Salt);
             string pin = transactionPin.HashSecret(salt);
+
             if (!user.Value.TransactionPin.Equals(pin))
+               // if (!user.Value.TransactionPin.Equals(transactionPin))
             {
-                throw new NotSuccessfulException("Invalid account number or pin.");
+                throw new NotSuccessfulException("Invalid phone number or pin.");
             }
             else
             {

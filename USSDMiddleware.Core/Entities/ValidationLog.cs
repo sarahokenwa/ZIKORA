@@ -16,6 +16,7 @@ public class ValidationLog
     public string Dob { get; set; }
     public string PhoneNumber { get; set; }
     public bool Valid { get; set; }
+    public string Email { get; set; }
     public DateTime CreatedOn { get; set; } = DateTime.Now;
 
     public ValidationLog()

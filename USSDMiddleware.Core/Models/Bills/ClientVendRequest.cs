@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace USSDMiddleware.Core.Models.Bills
+﻿namespace USSDMiddleware.Core.Models.Bills
 {
     public class ClientVendRequest
     {
@@ -19,4 +13,5 @@ namespace USSDMiddleware.Core.Models.Bills
         public string DrAccountNumber { get; set; }
         public Enums.Providers Provider { get; set; } = Enums.Providers.ZIKORA;
     }
+    
 }

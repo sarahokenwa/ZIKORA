@@ -1,13 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using USSDMiddleware.Infrastructure.Entities;
-using USSDMiddleware.Core.Enums;
-namespace USSDMiddleware.Core.Models.Bills
+﻿namespace USSDMiddleware.Core.Models.Bills
 {
-  
+
 
     public class ValidateRequestModel
     {

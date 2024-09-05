@@ -1,15 +1,13 @@
 ﻿using FizzWare.NBuilder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Repositories;
-using USSDMiddleware.Core.Models;
-using USSDMiddleware.Core.Models.PayOut;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Services;
+using Card = USSDMiddleware.Core.Entities.Card;
 
 namespace USSDMiddleware.Core.Managers
 {
@@ -67,7 +65,7 @@ namespace USSDMiddleware.Core.Managers
                       IsSuccessful = false
                     };
                 }
-                //TODO: Create a table called Account
+                
                 //var user = await _userManager.ValidateTransactionPin(request.TransactionPin);
                 var userExists = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
 
@@ -83,6 +81,7 @@ namespace USSDMiddleware.Core.Managers
                 {
                     throw new NotFoundException("User not found.");
                 }
+
                 var cardRequestExtension = new CardRequestExtension
                 {
                     AccountNumber = request.AccountNumber,
@@ -160,6 +159,154 @@ namespace USSDMiddleware.Core.Managers
               .With(c => c.BatchNo = cardResponse.BatchNo)
               .With(c => c.Identifier = cardResponse.Identifier)
               .Build());
+        }
+
+        public async Task<FreezeCardResponse> FreezeCard(FreezeCardRequest request)
+        {
+            try
+            {
+                var provider = _providerSelector.GetProvider(request.Provider);
+                var providerId = await provider.GetProviderId(_providerManager);
+
+                string reference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
+               
+                //if (string.IsNullOrEmpty(request.SerialNo))
+                //{
+                //    return new FreezeCardResponse
+                //    {
+                //        IsSuccessful = false,
+                //        ResponseCode = null, 
+                //        ResponseMessage = "Serial number is required",
+                //        TransactionReference = ""
+
+                //    };
+                //}
+
+                if (string.IsNullOrEmpty(request.AccountNumber))
+                {
+                    return new FreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseCode = null,
+                        ResponseMessage = "AccountNumber  is required",
+                        TransactionReference = ""
+                    };
+                }
+
+                //if (string.IsNullOrEmpty(request.Reference))
+                //{
+                //    return new FreezeCardResponse
+                //    {
+                //        IsSuccessful = false,
+                //        ResponseCode = null,
+                //        ResponseMessage = "Reference  is required",
+                //        TransactionReference = ""
+                //    };
+                //}
+
+                if (string.IsNullOrEmpty(request.Reason))
+                {
+                    return new FreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseCode = null,
+                        ResponseMessage = "Reason  is required",
+                        TransactionReference = ""
+                    };
+                }
+
+                var getCustomerCardRequest = new GetCustomerCardRequest
+                {
+                    AccountNo = request.AccountNumber,
+                    IncludeInactiveCards = true 
+                };
+
+                GetCustomerCardResponse cardResponse = await provider.GetCustomerCards(getCustomerCardRequest);
+
+                if (cardResponse.IsSuccessful && cardResponse.Cards?.Any() == true)
+                {
+                    string serialNo = cardResponse.Cards.First().SerialNo;
+
+                    var freezeCardRequest = new FreezeCardRequest
+                    {
+                        SerialNo = serialNo,
+                        Reference = reference,
+                        Reason = request.Reason,
+                        AccountNumber = request.AccountNumber,
+                        Provider = request.Provider 
+                    };
+
+                    var freezeCardResponse = await provider.FreezeCard(freezeCardRequest);
+
+                    return freezeCardResponse;
+
+                }
+                else
+                {
+                    throw new NotFoundException("No cards found for the provided account.");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while trying to freeze card.");
+                throw new NotSuccessfulException(ex.Message);
+            }
+        }
+
+        public async Task<UnFreezeCardResponse> UnFreezeCard(UnFreezeCardRequest request)
+        {
+            try
+            {
+                var provider = _providerSelector.GetProvider(request.Provider);
+                var providerId = await provider.GetProviderId(_providerManager);
+
+                var reference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
+
+                if (string.IsNullOrEmpty(request.Reason))
+                {
+                    return new UnFreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "Reason  is required",
+                        Reference = reference
+                    };
+                }
+
+                var getCustomerCardRequest = new GetCustomerCardRequest
+                {
+                    AccountNo = request.AccountNumber,
+                    IncludeInactiveCards = true
+                };
+
+                GetCustomerCardResponse cardResponse = await provider.GetCustomerCards(getCustomerCardRequest);
+
+                if (cardResponse.IsSuccessful && cardResponse.Cards?.Any() == true)
+                {
+                    string serialNo = cardResponse.Cards.First().SerialNo;
+
+                    request.SerialNo = serialNo;
+                    request.Reference = reference; cardResponse = await provider.GetCustomerCards(getCustomerCardRequest);
+
+                    var unfreezeCardResponse = await provider.UnFreezeCard(request);
+
+                    return unfreezeCardResponse;
+                }
+                else
+                {
+                    return new UnFreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "No cards found for the provided account.",
+                        Reference = reference
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while trying to unfreeze card.");
+                throw new NotSuccessfulException(ex.Message);
+            }
         }
     }
 }

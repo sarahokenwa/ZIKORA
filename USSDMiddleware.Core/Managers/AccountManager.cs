@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using FizzWare.NBuilder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Enums;
@@ -24,6 +25,7 @@ namespace USSDMiddleware.Core.Managers
         private readonly IMapper _mapper;
         private readonly ILogger<AccountManager> _log;
         private readonly IPayOutService _payOutService;
+        private readonly IConfiguration _configuration;
 
 
         public AccountManager(
@@ -33,7 +35,8 @@ namespace USSDMiddleware.Core.Managers
             ILogger<AccountManager> log,
             IValidationLogRepository validationLogRepository,
             IProviderManager providerManager,
-            IPayOutService payOutService)
+            IPayOutService payOutService,
+            IConfiguration configuration)
         {
             _providerSelector = providerSelector;
             _userRepository = userRepository;
@@ -42,6 +45,7 @@ namespace USSDMiddleware.Core.Managers
             _validationLogRepository = validationLogRepository;
             _providerManager = providerManager;
             _payOutService = payOutService;
+            _configuration = configuration;
         }
 
         public async Task<CreateAccountResponse> CreateAccount(CreateAccountRequest request)
@@ -65,19 +69,21 @@ namespace USSDMiddleware.Core.Managers
                         $"A user has already exist for this reference {validationLog.ValidationReference}");
                 }
                 byte[] salt = Utility.GetSalt();
-                var model = BuildUtil.BuildAccountCreationRequest(validationLog);
-                model.Email = request.Email; model.AccountOfficerCode = request.AccountOfficerCode;model.ProductCode = request.ProductCode; model.Gender = request.Gender;
-                var response = await provider.CreateAccount(model);
+                var configuration = new ConfigurationBuilder().Build(); 
+                var model = BuildUtil.BuildAccountCreationRequest(validationLog, configuration);
+                model.Gender = request.Gender; model.Email = validationLog.Email; model.AccountOfficerCode = _configuration["ApiOptions:Zikora:AccountOfficerCode"]; model.ProductCode = _configuration["ApiOptions:Zikora:ProductCode"];
+                // model.Email = request.Email; model.AccountOfficerCode = request.AccountOfficerCode;model.ProductCode = request.ProductCode; 
+                AccountCreationResponse response = await provider.CreateAccount(model);
                 var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
                     .With(u => u.Address = "")
-                    .With(u => u.Email = "")
+                    .With(u => u.Email = validationLog.Email)
+                    //.With(u => u.Email = "")
                     .With(u => u.CustomerId = response.CustomerId)
                     .With(u => u.ProviderId = providerId)
                     .With(u => u.CustomerName = response.FullName)
                     .With(u => u.PhoneNumber = validationLog.PhoneNumber)
                     .With(u => u.Salt = Convert.ToBase64String(salt))
                     .With(u => u.TransactionPin = request.TransactionPin.EncryptTransactionPin(salt))
-                   // .With(u => u.AccountNumber = request.TransactionPin.EncryptTransactionPin(salt))
                     .With(u => u.DateOfBirth = validationLog.Dob)
                     .With(u => u.BankVerificationNumber = validationLog.Bvn)
                       .With(u => u.Address = "NA")
@@ -107,6 +113,112 @@ namespace USSDMiddleware.Core.Managers
                 throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Name enquiry failed.");
             }
         }
+
+        public async Task<BlockAccountResponse> BlockAccount(BlockAccountRequest request)
+        {
+
+            try
+            {
+               
+                var provider = _providerSelector.GetProvider(request.Provider);
+                var providerId = await provider.GetProviderId(_providerManager);
+
+                if (string.IsNullOrEmpty(request.AccountNo))
+                {
+                    return new BlockAccountResponse
+                    {
+                        RequestStatus= false,
+                        ResponseDescription = "Account number is required.",
+                        ResponseStatus = "Failed"
+                    };
+                }
+
+                var blockAccount = await provider.BlockAccount(request);
+
+                if (blockAccount.ResponseStatus == "Failed")
+                {
+                    throw new NotSuccessfulException("Account blocking was unsuccessful.");
+                }
+
+                return blockAccount;
+            }
+            catch (Exception ex)
+            {
+                _log.LogError("An error occurred while trying to block account.", ex);
+                throw new NotSuccessfulException(ex.Message);
+            }
+        }
+
+        public async Task<BlockAccountResponse> DeactivatePND(BlockAccountRequest request)
+        {
+
+            try
+            {
+
+                var provider = _providerSelector.GetProvider(request.Provider);
+                var providerId = await provider.GetProviderId(_providerManager);
+
+                if (string.IsNullOrEmpty(request.AccountNo))
+                {
+                    return new BlockAccountResponse
+                    {
+                        RequestStatus = false,
+                        ResponseDescription = "Account number is required.",
+                        ResponseStatus = "Failed"
+                    };
+                }
+
+                var deactivatePND = await provider.DeactivatePND(request);
+
+                if (deactivatePND.ResponseStatus == "Failed")
+                {
+                    throw new NotSuccessfulException("PND deactivation failed.");
+                }
+
+                return deactivatePND;
+                
+            }
+            catch (Exception ex)
+            {
+                _log.LogError("An error occurred while trying to deactivate PND.", ex);
+                throw new NotSuccessfulException(ex.Message);
+            }
+        }
+
+        public async Task<BlockAccountResponse> VerifyPNDStatus(BlockAccountRequest request)
+        {
+
+            try
+            {
+               var provider = _providerSelector.GetProvider(request.Provider);
+                var providerId = await provider.GetProviderId(_providerManager);
+
+                if (string.IsNullOrEmpty(request.AccountNo))
+                {
+                    return new BlockAccountResponse
+                    {
+                        RequestStatus = false,
+                        ResponseDescription = "Account number is required.",
+                        ResponseStatus = "Failed"
+                    };
+                }
+
+                var verifyPNDStatus = await provider.VerifyPNDStatus(request);
+
+                if (verifyPNDStatus.ResponseStatus == "Failed")
+                {
+                    throw new NotSuccessfulException("PND status verification failed.");
+                }
+
+                return verifyPNDStatus;        
+            }
+            catch(Exception ex)
+            {
+                _log.LogError("An error occurred while trying to verify PND status.", ex);
+                throw new NotSuccessfulException(ex.Message);
+            }
+        }
+
 
     }
 }
