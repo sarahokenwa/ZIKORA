@@ -28,6 +28,9 @@
         public string BIN { get; set; }
         public string DeliveryOption { get; set; }
         public string Identifier { get; set; }
+        public string AccountOfficerCode { get; set; }
+        public string ProductCode { get; set; }
+        public string BankCode { get; set; }
     }
 
 }

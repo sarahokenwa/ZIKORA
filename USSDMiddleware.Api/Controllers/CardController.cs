@@ -34,6 +34,32 @@ namespace USSDMiddleware.Api.Controllers
                 Data = result
             });
         }
-       
+
+        [HttpPost("freeze-card")]
+        public async Task<IActionResult> FreezeCard([FromBody] FreezeCardRequest request)
+        {
+            var result = await _cardManager.FreezeCard(request);
+            return Ok(new Response<FreezeCardResponse>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = result.IsSuccessful,
+                Message = result.ResponseMessage,
+                Data = result
+            });
+        }
+
+        [HttpPost("unfreeze-card")]
+        public async Task<IActionResult> UnFreezeCard([FromBody] UnFreezeCardRequest request)
+        {
+            var result = await _cardManager.UnFreezeCard(request);
+            return Ok(new Response<UnFreezeCardResponse>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = result.IsSuccessful,
+                Message = result.ResponseMessage,
+                Data = result
+            });
+        }
+
     }
 }

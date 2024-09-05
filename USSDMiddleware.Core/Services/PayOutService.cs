@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Text;
 using USSDMiddleware.Core.Exceptions;
@@ -18,16 +19,19 @@ namespace USSDMiddleware.Core.Services
         private readonly IHttpService _httpService;
         private readonly ILogger<PayOutService> _log;
         private readonly ICyberPayProvider _cyberPayProvider;
+        private readonly IConfiguration _configuration;
 
         public PayOutService(ApiOptions apiOptions, 
             IHttpService httpService,
             ILogger<PayOutService> log,
-            ICyberPayProvider cyberPayProvider)
+            ICyberPayProvider cyberPayProvider,
+            IConfiguration configuration)
         {
             _apiOptions = apiOptions;
             _httpService = httpService;
             _log = log;
             _cyberPayProvider = cyberPayProvider;
+            _configuration = configuration;
 
         }
 
@@ -62,12 +66,13 @@ namespace USSDMiddleware.Core.Services
             }
         }
 
-        public async Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequest request)
+        public async Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequest request, string merchantReference)
         {
             try
             {
-               
-                var nameEnquiryRequest = new NameEnquiryRequest 
+                var MerchantRef = merchantReference;
+
+                var nameEnquiryRequest = new NameEnquiryRequest
                 {
                     AccountNumber = request.SenderAccountNumber,
                     BankCode = request.BankCode,
@@ -84,7 +89,25 @@ namespace USSDMiddleware.Core.Services
                 var credentials = await _cyberPayProvider.GetClientCredentials();
                 var url = $"{_apiOptions.CyberPayFundTransferUrl}/instant";
 
-                var stringContent = JsonConvert.SerializeObject(request);
+                var instantPayOut = new
+                {
+                    
+                    request.SenderAccountNumber,
+                    request.SenderAccountName,
+                    request.BeneficiaryAccountName,
+                    request.BeneficiaryAccountNumber,
+                    request.Amount,
+                    request.Narration,
+                    request.PhoneNumber,
+                    MerchantRef = merchantReference,
+                    WalletCode = _configuration["ApiOptions:WalletCode"],
+                    WebHook = _configuration["ApiOptions:WebHook"],
+                    WalletType = _configuration["ApiOptions:WalletType"],
+                    MerchantCharge = _configuration["ApiOptions:MerchantCharge"],
+                    BankCode = _configuration["ApiOptions:BankCode"],
+                };
+
+                var stringContent = JsonConvert.SerializeObject(instantPayOut);
                 HttpContent httpContent = new StringContent(stringContent, Encoding.UTF8, "application/json");
 
                 var instantPayOutResponse = await _httpService.Post<InstantPayOutResponse>(url, httpContent, credentials.access_token);

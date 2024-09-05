@@ -1,5 +1,6 @@
 ﻿using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Models;
+using USSDMiddleware.Core.Models.Accounts;
 using USSDMiddleware.Core.Models.Providers.Zikora;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
@@ -20,5 +21,11 @@ namespace USSDMiddleware.Core.Interfaces.Providers
         Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber);
         Task<DebitCustomerAccountResponse> DebitCustomerAccount(DebitCustomerAccountRequest model);
         Task<CardResponse> CardRequest(CardRequestExtension request);
+        Task<BlockAccountResponse> BlockAccount(BlockAccountRequest request);
+        Task<BlockAccountResponse> VerifyPNDStatus(BlockAccountRequest request);
+        Task<BlockAccountResponse> DeactivatePND(BlockAccountRequest request);
+        Task<GetCustomerCardResponse> GetCustomerCards(GetCustomerCardRequest request);
+        Task<FreezeCardResponse> FreezeCard(FreezeCardRequest request);
+        Task<UnFreezeCardResponse> UnFreezeCard(UnFreezeCardRequest request);
     }
 }

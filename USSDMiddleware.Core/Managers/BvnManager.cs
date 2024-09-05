@@ -36,6 +36,11 @@ public class BvnManager : IBvnManager
             return new GetBvnInfoResponse("", bvnInfoResponse.isBvnValid, "");
         }
 
+        if(string.IsNullOrEmpty(bvnInfoResponse.bvnDetails.Email))
+        {
+            bvnInfoResponse.bvnDetails.Email = RandomEmailGenerator.GenerateRandomEmail();
+        }
+
         var createdValidationLog = await _validationLogManager.CreateValidationLog(Builder<ValidationLog>.CreateNew()
           .With(v => v.Bvn = bvnInfoResponse.bvnDetails.BVN)
            // .With(v => v.PhoneNumber = bvnInfoResponse.bvnDetails.phoneNumber)
@@ -43,6 +48,7 @@ public class BvnManager : IBvnManager
             .With(v => v.FirstName = bvnInfoResponse.bvnDetails.FirstName)
             .With(v => v.LastName = bvnInfoResponse.bvnDetails.LastName)
             .With(v => v.Dob = bvnInfoResponse.bvnDetails.DOB)
+            .With(v => v.Email = bvnInfoResponse.bvnDetails.Email)
             .With(v => v.OtherNames = bvnInfoResponse.bvnDetails.OtherNames)
             .With(v => v.Valid = true)
             .Build());

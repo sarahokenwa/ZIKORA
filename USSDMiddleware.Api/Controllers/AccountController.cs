@@ -46,5 +46,44 @@ namespace USSDMiddleware.Api.Controllers
                 Data = result
             });
         }
+
+        [HttpPost("block-account")]
+        public async Task<IActionResult> BlockAccount([FromBody] BlockAccountRequest request)
+        {
+            var result = await _accountManager.BlockAccount(request);
+
+            return Ok(new Response<BlockAccountResponse>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = result
+            });
+        }
+
+        [HttpPost("deactivate-pnd")]
+        public async Task<IActionResult> DeactivatePND([FromBody] BlockAccountRequest request)
+        {
+            var result = await _accountManager.DeactivatePND(request);
+
+            return Ok(new Response<BlockAccountResponse>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = result
+            });
+        }
+
+        [HttpPost("verify-pnd-status")]
+        public async Task<IActionResult> VerifyPNDStatus([FromBody] BlockAccountRequest request)
+        {
+            var result = await _accountManager.VerifyPNDStatus(request);
+
+            return Ok(new Response<BlockAccountResponse>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = result
+            });
+        }
     }
 }
