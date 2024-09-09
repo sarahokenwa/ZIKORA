@@ -170,18 +170,6 @@ namespace USSDMiddleware.Core.Managers
 
                 string reference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
                
-                //if (string.IsNullOrEmpty(request.SerialNo))
-                //{
-                //    return new FreezeCardResponse
-                //    {
-                //        IsSuccessful = false,
-                //        ResponseCode = null, 
-                //        ResponseMessage = "Serial number is required",
-                //        TransactionReference = ""
-
-                //    };
-                //}
-
                 if (string.IsNullOrEmpty(request.AccountNumber))
                 {
                     return new FreezeCardResponse
@@ -192,17 +180,6 @@ namespace USSDMiddleware.Core.Managers
                         TransactionReference = ""
                     };
                 }
-
-                //if (string.IsNullOrEmpty(request.Reference))
-                //{
-                //    return new FreezeCardResponse
-                //    {
-                //        IsSuccessful = false,
-                //        ResponseCode = null,
-                //        ResponseMessage = "Reference  is required",
-                //        TransactionReference = ""
-                //    };
-                //}
 
                 if (string.IsNullOrEmpty(request.Reason))
                 {

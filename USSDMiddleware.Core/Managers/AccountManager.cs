@@ -26,6 +26,8 @@ namespace USSDMiddleware.Core.Managers
         private readonly ILogger<AccountManager> _log;
         private readonly IPayOutService _payOutService;
         private readonly IConfiguration _configuration;
+        private readonly IUserManager _userManager;
+
 
 
         public AccountManager(
@@ -36,7 +38,8 @@ namespace USSDMiddleware.Core.Managers
             IValidationLogRepository validationLogRepository,
             IProviderManager providerManager,
             IPayOutService payOutService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IUserManager userManager)
         {
             _providerSelector = providerSelector;
             _userRepository = userRepository;
@@ -46,6 +49,7 @@ namespace USSDMiddleware.Core.Managers
             _providerManager = providerManager;
             _payOutService = payOutService;
             _configuration = configuration;
+            _userManager = userManager;
         }
 
         //public async Task<CreateAccountResponse> CreateAccount(CreateAccountRequest request)
@@ -118,28 +122,105 @@ namespace USSDMiddleware.Core.Managers
 
             try
             {
-               
-                var provider = _providerSelector.GetProvider(request.Provider);
-                var providerId = await provider.GetProviderId(_providerManager);
-
                 if (string.IsNullOrEmpty(request.AccountNo))
                 {
                     return new BlockAccountResponse
                     {
-                        RequestStatus= false,
+                        RequestStatus = false,
+                        ResponseDescription = "AccountNo is required.",
+                        ResponseStatus = "Failed"
+                    };
+                }
+
+                if (string.IsNullOrEmpty(request.OwnersPhoneNumber))
+                {
+                    return new BlockAccountResponse
+                    {
+                        RequestStatus = false,
+                        ResponseDescription = "Owners phone number is required.",
+                        ResponseStatus = "Failed"
+                    };
+                }
+
+                if (string.IsNullOrEmpty(request.RequestPhoneNumber))
+                {
+                    return new BlockAccountResponse
+                    {
+                        RequestStatus = false,
+                        ResponseDescription = "Request phone number is required.",
+                        ResponseStatus = "Failed"
+                    };
+                }
+
+                if (string.IsNullOrEmpty(request.Pin))
+                {
+                    return new BlockAccountResponse
+                    {
+                        RequestStatus = false,
                         ResponseDescription = "Account number is required.",
                         ResponseStatus = "Failed"
                     };
                 }
 
-                var blockAccount = await provider.BlockAccount(request);
+                var provider = _providerSelector.GetProvider(request.Provider);
+                var providerId = await provider.GetProviderId(_providerManager);
 
-                if (blockAccount.ResponseStatus == "Failed")
+                var phoneValidationRequest = new PhoneValidationRequest
                 {
-                    throw new NotSuccessfulException("Account blocking was unsuccessful.");
+                    PhoneNumber = request.OwnersPhoneNumber,
+                    Provider = request.Provider
+                };
+
+                var user = await _userManager.GetUserByPhoneNumber(phoneValidationRequest);
+
+                if (user == null || string.IsNullOrEmpty(user.PhoneNumber))
+                {
+                    return new BlockAccountResponse
+                    {
+                        RequestStatus = false,
+                        ResponseDescription = "User not found.",
+                        ResponseStatus = "Failed"
+                    };
                 }
 
-                return blockAccount;
+                var userPin = await _userManager.ValidateTransactionPin(request.Pin, request.OwnersPhoneNumber, providerId);
+                if(!userPin)
+        {
+                    return new BlockAccountResponse
+                    {
+                        RequestStatus = false,
+                        ResponseDescription = "Invalid PIN.",
+                        ResponseStatus = "Failed"
+                    };
+                }
+
+                if (request.OwnersPhoneNumber == request.RequestPhoneNumber)
+                {
+
+                    var blockAccountRequest = new BlockAccountRequest
+                    {
+                        AccountNo = request.AccountNo,
+
+                    };
+                    var blockAccount = await provider.BlockAccount(blockAccountRequest);
+
+                    if (blockAccount.ResponseStatus == "Failed")
+                    {
+                        throw new NotSuccessfulException("Account blocking was unsuccessful.");
+                    }
+
+                    return blockAccount;
+                }
+                else
+                {
+                    return new BlockAccountResponse
+                    {
+                        RequestStatus = false,
+                        ResponseDescription = "Failed to block account.",
+                        ResponseStatus = "Failed"
+                    };
+                }
+
             }
             catch (Exception ex)
             {

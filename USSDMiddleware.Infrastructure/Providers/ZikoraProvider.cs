@@ -1,7 +1,6 @@
 ﻿using FizzWare.NBuilder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using USSDMiddleware.Core.Enums;
@@ -42,6 +41,10 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 string url =  $"{BuildUrl("/BankOneWebAPI/api/Customer/PhoneNumberExist/2")}&phoneNumber={request.PhoneNumber}";
+
+
+                _log.LogInformation($"ValidatePhone Url: {url}");
+
                 var boolRsp = await _httpService.Get<bool>(url, BuildHeader());
                 if (boolRsp.Equals(true))
                 {
@@ -61,6 +64,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByCustomerPhoneNumber/2")}&phoneNumber={phoneNumber}";
+
+                _log.LogInformation($"Get User By Phone number Url: {url}");
+
                 var users = await _httpService.Get<ZikoraGetUserByPhoneNumberResponse[]>(url, BuildHeader());
 
                 if (users == null || users.Length == 0)
@@ -93,6 +99,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByAccountNo2/2")}&accountNumber={accountNumber}";
+
+                _log.LogInformation($"GetUserByAccountNumber Url: {url}");
+
                 var user = await _httpService.Get<GetUserByAccountNumberResponse>(url, BuildHeader());
 
                 if (user == null)
@@ -117,6 +126,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 var url = BuildUrl($"BankOneWebAPI/api/Account/CreateAccountQuick/2");
+
+                _log.LogInformation($"CreateAccount Url: {url}");
+                _log.LogInformation($"CreateAccount Request Body: {req}");
 
                 var rsp = await _httpService.Post<JObject>(url, BuildHeader(), JsonConvert.SerializeObject(req));
                 var isSuccess = rsp["IsSuccessful"]!.Value<bool>();
@@ -151,6 +163,9 @@ namespace USSDMiddleware.Infrastructure.Providers
 
             var jsonContent = JsonConvert.SerializeObject(request);
             var bvnInfoResponse = await _httpService.Post<BvnInfoResponse>(BuildUrl("thirdpartyapiservice/apiservice/Account/BVN/GetBVNDetails"), BuildHeader(), jsonContent);
+
+            
+            _log.LogInformation($"GetBvnInfo Request Body: {jsonContent}");
             if (!bvnInfoResponse.isBvnValid)
             {
                 throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Bvn is invalid");
@@ -181,6 +196,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             var computeWithDrawableBalance = true;
             var url = $"{BuildUrl("/BankOneWebAPI/api/Account/GetAccountByAccountNumber/2")}&accountNumber={model.AccountNumber}" +
                       $"&computeWithDrawableBalance={computeWithDrawableBalance}&provider={Core.Enums.Providers.ZIKORA}";
+
+            _log.LogInformation($"CheckAccountBalance Url: {url}");
+
             try
             {
                 var serviceRsp = await _httpService.Get<ZikoraBalanceEnquiryResponse>(url, BuildHeader());
@@ -203,6 +221,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByCustomerPhoneNumber/2")}&&phoneNumber={phoneNumber}";
+
+                _log.LogInformation($"CreateAccount Url: {url}");
+
                 var serviceRsp = await _httpService.Get<JArray>(url, BuildHeader());
 
                 if (serviceRsp == null || serviceRsp.Count == 0)
@@ -252,6 +273,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(debitPayload);
+
+                _log.LogInformation($"DebitCustomerAccount Url: {debitUrl}");
+                _log.LogInformation($"CreateAccount Request Body: {jsonContent}");
+
                 var debitResponseContent = await _httpService.Post<DebitCustomerAccountResponse>(debitUrl, headers, jsonContent);
 
                 if (debitResponseContent != null)
@@ -315,6 +340,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(cardRequest);
+
+                _log.LogInformation($"Card request Url: {cardRequestUrl}");
+                _log.LogInformation($"Card Request Body: {cardRequest}");
+
                 var cardResponseContent = await _httpService.Post<CardResponse>(cardRequestUrl, headers, jsonContent);
 
                 if (cardResponseContent != null && cardResponseContent.IsSuccessful)
@@ -323,8 +352,6 @@ namespace USSDMiddleware.Infrastructure.Providers
                     {
                         IsSuccessful = cardResponseContent.IsSuccessful,
                         ResponseMessage = cardResponseContent.ResponseMessage,
-                        BatchNo = cardResponseContent.BatchNo,
-                        Identifier = cardResponseContent.Identifier,
                     };
 
                     _log.LogInformation($"Card result: {JsonConvert.SerializeObject(cardResult)}");
@@ -367,7 +394,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var statusQueryJsonContent = JsonConvert.SerializeObject(statusQueryPayload);
 
-                _log.LogInformation($"Status query payload: {statusQueryJsonContent}");
+                _log.LogInformation($"Status Query Url: {statusQueryUrl}");
+                _log.LogInformation($"Card Request Body: {statusQueryJsonContent}");
 
                 var statusQueryResponseContent = await _httpService.Post<RequeryResponse>(statusQueryUrl, headers, statusQueryJsonContent);
 
@@ -411,6 +439,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(blockAccount);
+
+                _log.LogInformation($"Block account Url: {blockAccountUrl}");
+                _log.LogInformation($"Block account request Body: {jsonContent}");
+
                 var response = await _httpService.Post<BlockAccountResponse>(blockAccountUrl, headers, jsonContent);
 
                 if (response.ResponseStatus == "Successful")
@@ -459,6 +491,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(deactivatePostNoDebit);
+
+                _log.LogInformation($"DeactivatePND Url: {deactivatePostNoDebitUrl}");
+                _log.LogInformation($"DeactivatePND Request Body: {jsonContent}");
+
                 var response = await _httpService.Post<BlockAccountResponse>(deactivatePostNoDebitUrl, headers, jsonContent);
 
                 if (response.ResponseStatus == "Successful")
@@ -507,6 +543,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(verifyAccountPNDStatus);
+
+                _log.LogInformation($"VerifyPNDStatus Url: {verifyAccountPNDStatusUrl}");
+                _log.LogInformation($"VerifyPNDStatus Request Body: {jsonContent}");
+
                 var response = await _httpService.Post<BlockAccountResponse>(verifyAccountPNDStatusUrl, headers, jsonContent);
 
                 if (response.ResponseStatus == "Active")
@@ -557,6 +597,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(getCustomerCards);
+
+                _log.LogInformation($"GetCustomerCards Url: {getCustomerCardsUrl}");
+                _log.LogInformation($"GetCustomerCards Request Body: {jsonContent}");
+
                 var response = await _httpService.Post<GetCustomerCardResponse>(getCustomerCardsUrl, headers, jsonContent);
 
                 if (response.IsSuccessful)
@@ -617,6 +661,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(freezeCard);
+
+                _log.LogInformation($"FreezeCard Url: {freezeCardUrl}");
+                _log.LogInformation($"FreezeCard Request Body: {jsonContent}");
+
                 var response = await _httpService.Post<FreezeCardResponse>(freezeCardUrl, headers, jsonContent);
 
                 if (response.IsSuccessful)
@@ -626,7 +674,6 @@ namespace USSDMiddleware.Infrastructure.Providers
                         IsSuccessful = response.IsSuccessful,
                         ResponseCode = response.ResponseCode,
                         ResponseMessage = response.ResponseMessage,
-                        SerialNo = response.SerialNo,
                         TransactionReference = response.TransactionReference,
                     };
 
@@ -670,6 +717,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(UnfreezeCard);
+
+                _log.LogInformation($"UnFreezeCard Url: {unFreezeCardUrl}");
+                _log.LogInformation($"UnFreezeCard Request Body: {jsonContent}");
+
                 var response = await _httpService.Post<UnFreezeCardResponse>(unFreezeCardUrl, headers, jsonContent);
 
                 if (response.IsSuccessful)

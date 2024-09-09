@@ -1,7 +1,5 @@
-﻿using Microsoft.AspNetCore.Connections;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using System.Text;
 using USSDMiddleware.Core.Exceptions;
@@ -114,8 +112,6 @@ namespace USSDMiddleware.Core.Services
 
                 _log.LogInformation($"InstantPayOut Url: {url}");
                 _log.LogInformation($"InstantPayOut Request Body: {stringContent}");
-
-
 
                 var instantPayOutResponse = await _httpService.Post<InstantPayOutResponse>(url, httpContent, credentials.access_token);
 
