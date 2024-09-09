@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Microsoft.AspNetCore.Connections;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using System.Text;
 using USSDMiddleware.Core.Exceptions;
@@ -21,7 +23,7 @@ namespace USSDMiddleware.Core.Services
         private readonly ICyberPayProvider _cyberPayProvider;
         private readonly IConfiguration _configuration;
 
-        public PayOutService(ApiOptions apiOptions, 
+        public PayOutService(ApiOptions apiOptions,
             IHttpService httpService,
             ILogger<PayOutService> log,
             ICyberPayProvider cyberPayProvider,
@@ -74,7 +76,7 @@ namespace USSDMiddleware.Core.Services
 
                 var nameEnquiryRequest = new NameEnquiryRequest
                 {
-                    AccountNumber = request.SenderAccountNumber,
+                    AccountNumber = request.AccountNumber,
                     BankCode = request.BankCode,
                 };
 
@@ -92,23 +94,28 @@ namespace USSDMiddleware.Core.Services
                 var instantPayOut = new
                 {
                     
-                    request.SenderAccountNumber,
-                    request.SenderAccountName,
-                    request.BeneficiaryAccountName,
-                    request.BeneficiaryAccountNumber,
+                    request.AccountNumber,
+                    request.SenderName,
+                    request.BeneficiaryName,
+                   // request.BeneficiaryAccountNumber,
                     request.Amount,
                     request.Narration,
-                    request.PhoneNumber,
+                   // request.PhoneNumber,
                     MerchantRef = merchantReference,
-                    WalletCode = _configuration["ApiOptions:WalletCode"],
-                    WebHook = _configuration["ApiOptions:WebHook"],
-                    WalletType = _configuration["ApiOptions:WalletType"],
-                    MerchantCharge = _configuration["ApiOptions:MerchantCharge"],
-                    BankCode = _configuration["ApiOptions:BankCode"],
+                    WalletCode = _configuration["ApiOptions:Zikora:WalletCode"],
+                    WebHook = _configuration["ApiOptions:Zikora:WebHook"],
+                    WalletType = _configuration["ApiOptions:Zikora:WalletType"],
+                    MerchantCharge = _configuration["ApiOptions:Zikora:MerchantCharge"],
+                    BankCode = _configuration["ApiOptions:Zikora:BankCode"],
                 };
 
                 var stringContent = JsonConvert.SerializeObject(instantPayOut);
                 HttpContent httpContent = new StringContent(stringContent, Encoding.UTF8, "application/json");
+
+                _log.LogInformation($"InstantPayOut Url: {url}");
+                _log.LogInformation($"InstantPayOut Request Body: {stringContent}");
+
+
 
                 var instantPayOutResponse = await _httpService.Post<InstantPayOutResponse>(url, httpContent, credentials.access_token);
 

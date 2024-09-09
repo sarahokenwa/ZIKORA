@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="13.0.1" />
+    <PackageReference Include="Hangfire.SqlServer" Version="1.8.11" />
+    <PackageReference Include="Hangfire" Version="1.8.11" />
     <PackageReference Include="libphonenumber-csharp" Version="8.13.38" />
     <PackageReference Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="8.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.1.34" />

@@ -1,6 +1,7 @@
 ﻿using FizzWare.NBuilder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using USSDMiddleware.Core.Enums;
@@ -244,9 +245,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                     model.AccountNumber,
                     model.Amount,
                     model.Narration,
-                    GLCode = _configuration["ApiOptions:GLCode"],
-                    NibssCode = _configuration["ApiOptions:NibssCode"],
-                    Fee = _configuration["ApiOptions:FundTransferFee"],
+                    GLCode = _configuration["ApiOptions:Zikora:GLCode"],
+                    NibssCode = _configuration["ApiOptions:Zikora:NibssCode"],
+                    Fee = _configuration["ApiOptions:Zikora:FundTransferFee"],
                     token = authenticationToken,
                 };
 
@@ -345,7 +346,6 @@ namespace USSDMiddleware.Infrastructure.Providers
                 throw new OperationFailedException($"Failed to make card request: {ex.Message}", ex);
             }
         }
-
 
         public async Task<RequeryResponse> StatusQuery(ReQueryRequest model)
         {

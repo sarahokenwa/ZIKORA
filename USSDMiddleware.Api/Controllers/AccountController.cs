@@ -22,7 +22,8 @@ namespace USSDMiddleware.Api.Controllers
         }
 
         [HttpPost("create")]
-        public async Task<IActionResult> CreateNewAccount([FromBody] CreateAccountRequest request)
+       // public async Task<IActionResult> CreateNewAccount([FromBody] CreateAccountRequest request)
+        public async Task<IActionResult> CreateNewAccount([FromBody] CreateAccountRequestExtension request)
         {
             var result = await _accountManager.CreateAccount(request);
 

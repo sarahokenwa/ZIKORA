@@ -20,7 +20,7 @@ namespace USSDMiddleware.Core.Entities
         [StringLength(60)]
         public string NibssCode { get; set; }
         [StringLength(60)]
-        public string BankCode { get; set; }
+        public string? BankCode { get; set; }
         public decimal Fee { get; set; }
         [StringLength(60)]
         public string ProcessorRef { get; set; }

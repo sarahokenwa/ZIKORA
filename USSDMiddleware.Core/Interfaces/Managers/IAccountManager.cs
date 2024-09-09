@@ -6,7 +6,8 @@ namespace USSDMiddleware.Core.Interfaces.Managers
 {
     public interface IAccountManager
     {
-        Task<CreateAccountResponse> CreateAccount(CreateAccountRequest newUser);
+        //Task<CreateAccountResponse> CreateAccount(CreateAccountRequest newUser);
+        Task<CreateAccountResponse> CreateAccount(CreateAccountRequestExtension newUser);
         Task<NameEnquiryResponse> NameEnquiry(NameEnquiryRequest request);
         Task<BlockAccountResponse> BlockAccount(BlockAccountRequest request);
         Task<BlockAccountResponse> DeactivatePND(BlockAccountRequest request);

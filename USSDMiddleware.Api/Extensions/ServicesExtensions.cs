@@ -51,6 +51,7 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<ICyberPayProvider, CyberPayProvider>();
             services.AddScoped<UssdProviderSelector>();
             services.AddScoped<IPayOutService, PayOutService>();
+            services.AddScoped<IBackgroundService, HangfireBackgroundService>();
 
 
 
@@ -59,6 +60,8 @@ namespace USSDMiddleware.Api.Extensions
             #endregion service
 
             //Configurations
+
+           // services.Configure<ApiOptions>(configuration.GetSection("ApiOptions"));
 
             services.AddSingleton(configuration.GetSection("ApiOptions").Get<ApiOptions>());
 

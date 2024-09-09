@@ -27,5 +27,6 @@ namespace USSDMiddleware.Core.Interfaces.Providers
         Task<GetCustomerCardResponse> GetCustomerCards(GetCustomerCardRequest request);
         Task<FreezeCardResponse> FreezeCard(FreezeCardRequest request);
         Task<UnFreezeCardResponse> UnFreezeCard(UnFreezeCardRequest request);
+        Task<RequeryResponse> StatusQuery(ReQueryRequest model);
     }
 }

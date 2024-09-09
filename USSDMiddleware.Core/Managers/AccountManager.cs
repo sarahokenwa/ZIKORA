@@ -48,7 +48,8 @@ namespace USSDMiddleware.Core.Managers
             _configuration = configuration;
         }
 
-        public async Task<CreateAccountResponse> CreateAccount(CreateAccountRequest request)
+        //public async Task<CreateAccountResponse> CreateAccount(CreateAccountRequest request)
+        public async Task<CreateAccountResponse> CreateAccount(CreateAccountRequestExtension request)
         {
             try
             {
@@ -72,15 +73,13 @@ namespace USSDMiddleware.Core.Managers
                 var configuration = new ConfigurationBuilder().Build(); 
                 var model = BuildUtil.BuildAccountCreationRequest(validationLog, configuration);
                 model.Gender = request.Gender; model.Email = validationLog.Email; model.AccountOfficerCode = _configuration["ApiOptions:Zikora:AccountOfficerCode"]; model.ProductCode = _configuration["ApiOptions:Zikora:ProductCode"];
-                // model.Email = request.Email; model.AccountOfficerCode = request.AccountOfficerCode;model.ProductCode = request.ProductCode; 
                 AccountCreationResponse response = await provider.CreateAccount(model);
                 var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
                     .With(u => u.Address = "")
                     .With(u => u.Email = validationLog.Email)
-                    //.With(u => u.Email = "")
-                    .With(u => u.CustomerId = response.CustomerId)
+                    .With(u => u.CustomerId = "")
                     .With(u => u.ProviderId = providerId)
-                    .With(u => u.CustomerName = response.FullName)
+                    .With(u => u.CustomerName = "")
                     .With(u => u.PhoneNumber = validationLog.PhoneNumber)
                     .With(u => u.Salt = Convert.ToBase64String(salt))
                     .With(u => u.TransactionPin = request.TransactionPin.EncryptTransactionPin(salt))

@@ -10,22 +10,24 @@ namespace USSDMiddleware.Core.Entities
             [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
             public string Id { get; set; }
             [StringLength(60)]
-            public string WalletCode { get; set; }
+            public string? WalletCode { get; set; }
             [StringLength(60)]
-            public string BeneficiaryAccountName { get; set; }
+            //public string BeneficiaryAccountName { get; set; }
+            public string BeneficiaryName { get; set; }
             [StringLength(60)]
-            public string SenderAccountName { get; set; }
+            //public string SenderAccountName { get; set; }
+            public string SenderName { get; set; }
             [StringLength(60)]
-            public string SenderAccountNumber { get; set; }
+            public string AccountNumber { get; set; }
             [StringLength(60)]
             public string PhoneNumber { get; set; }
             public decimal Amount { get; set; }
             [StringLength(60)]
             public string TransactionPin { get; set; }
+            //[StringLength(60)]
+            //public string BeneficiaryAccountNumber { get; set; }
             [StringLength(60)]
-            public string BeneficiaryAccountNumber { get; set; }
-            [StringLength(60)]
-            public string BankCode { get; set; }
+            public string? BankCode { get; set; }
             [StringLength(60)]
             public string WebHook { get; set; }
             [StringLength(60)]

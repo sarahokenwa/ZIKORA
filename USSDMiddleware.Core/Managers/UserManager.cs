@@ -180,7 +180,6 @@ namespace USSDMiddleware.Core.Managers
             string pin = transactionPin.HashSecret(salt);
 
             if (!user.Value.TransactionPin.Equals(pin))
-               // if (!user.Value.TransactionPin.Equals(transactionPin))
             {
                 throw new NotSuccessfulException("Invalid phone number or pin.");
             }

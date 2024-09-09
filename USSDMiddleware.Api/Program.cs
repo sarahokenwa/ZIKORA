@@ -1,3 +1,5 @@
+using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.OpenApi.Models;
 using System.Text.Json.Serialization;
 using USSDMiddleware.Api.Extensions;
@@ -8,6 +10,19 @@ using USSDMiddleware.Core.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddHangfire(configuration => configuration
+       .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
+       .UseSimpleAssemblyNameTypeSerializer()
+       .UseRecommendedSerializerSettings()
+       .UseSqlServerStorage(builder.Configuration.GetConnectionString("HangfireConnection"), new SqlServerStorageOptions
+       {
+           CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+           SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+           QueuePollInterval = TimeSpan.Zero,
+           UseRecommendedIsolationLevel = true,
+           DisableGlobalLocks = true
+       }));
+builder.Services.AddHangfireServer();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -19,6 +34,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddAutoMapper(typeof(MappingConfig));
+builder.Services.AddHangfire(x => x.UseSqlServerStorage(builder.Configuration.GetConnectionString("HangFireConnection")));
 builder.Services.AddDatabaseServices(builder.Configuration);
 builder.Services.AddSecurityServices(builder.Configuration);
 builder.Services.AddAppServices(builder.Configuration);
@@ -87,7 +103,7 @@ app.UseCors("*");
 
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseHangfireDashboard("/hangfire");
 app.MapControllers();
 
 app.Run();

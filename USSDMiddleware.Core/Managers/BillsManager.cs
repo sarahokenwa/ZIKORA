@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Exceptions;
+using USSDMiddleware.Core.Interfaces.ExternalServices;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Providers;
 using USSDMiddleware.Core.Interfaces.Repositories;
@@ -26,16 +27,19 @@ namespace USSDMiddleware.Core.Managers
         private readonly IUserManager _userManager;
         private readonly IPayOutManager _payOutManager;
         private readonly IConfiguration _configuration;
+        private readonly IBackgroundService _backgroundService;
 
-        public BillsManager(IUserRepository userRepository, 
-            ICyberPayProvider cyberPayProvider, 
+
+        public BillsManager(IUserRepository userRepository,
+            ICyberPayProvider cyberPayProvider,
             ILogger<BillsManager> log,
-            UssdProviderSelector providerSelector, 
+            UssdProviderSelector providerSelector,
             IProviderManager providerManager,
             IBillsRepository billsRepository,
-            IUserManager userManager, 
+            IUserManager userManager,
             IPayOutManager payOutManager,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IBackgroundService backgroundService)
         {
             _userRepository = userRepository;
             _cyberPayProvider = cyberPayProvider;
@@ -46,6 +50,7 @@ namespace USSDMiddleware.Core.Managers
             _userManager = userManager;
             _payOutManager = payOutManager;
             _configuration = configuration;
+            _backgroundService = backgroundService;
         }
 
         public async Task<BillersResponse> GetBillers(string categoryId)
@@ -258,15 +263,22 @@ namespace USSDMiddleware.Core.Managers
                 {
                     return validationResult;
                 }
-                
+
                 var provider = _providerSelector.GetProvider(requestModel.Provider);
                 var providerId = await provider.GetProviderId(_providerManager);
+                bool isPinValid = await _userManager.ValidateTransactionPin(requestModel.TransactionPin, requestModel.CustomerMobile, providerId);
+                if (!isPinValid)
+                {
+                    throw new NotSuccessfulException("Invalid phone number or pin.");
+                }
+
                 var userDetail = await _userRepository.GetByPhoneNumber(requestModel.CustomerMobile, providerId);
                 var userValidationResult = await ValidateUserDetail(userDetail, providerId);
                 if (!userValidationResult.Succeeded)
                 {
                     return userValidationResult;
                 }
+
 
                 var settings = new ZIKORAModelExtension();
                 settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
@@ -300,38 +312,50 @@ namespace USSDMiddleware.Core.Managers
 
                 DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
 
-                CustomerDebit updateCustomerDebit = await _payOutManager.UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
+                //   CustomerDebit updateCustomerDebit = await _payOutManager.UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
 
-                if (!debitResponse.ResponseCode.Equals("00"))
+                //if (!debitResponse.ResponseCode.Equals("00"))
+                //{
+                //    throw new NotSuccessfulException("Failed to debit customer account, insufficient fund.");
+                //}
+
+                //var logBill = await LogBillPayment(requestModel, providerId, merchantRef);
+
+
+                //var validateRequest = new ValidateRequestModel
+                //{
+                //    itemCode = requestModel.PaymentCode,
+                //    customerId = requestModel.CustomerId,
+                //    customerPhoneNumber = requestModel.CustomerMobile,
+                //    shouldVerifyCustomer = true,
+                //    customerEmail = userDetail.Value.Email,
+                //    customerName = userDetail.Value.CustomerName,
+                //    amount = requestModel.Amount,
+                //    Provider = Enums.Providers.ZIKORA
+                //};
+
+                //var validate = await Validate(validateRequest);
+                //if(validate == null || validate.Data == null)
+                //{
+                //    throw new NotSuccessfulException($"Invalid customerId : {requestModel.CustomerId}.");
+                //}
+                //requestModel.validationReference = validate.Data.ValidationRef;
+                //VendRequest vendRequest = CreateVendRequest(requestModel, merchantRef);
+
+
+                //var vendBill = await _cyberPayProvider.Vend(vendRequest);
+
+                //await UpdateBillPayment(vendBill, logBill, providerId);
+
+                //return vendBill;
+                await _backgroundService.EnqueueProcess(() => VendBill(requestModel, userDetail, debitResponse, logdebitRequest, merchantRef));
+
+                return new VendResponse
                 {
-                    throw new NotSuccessfulException("Failed to debit customer account, insufficient fund.");
-                }
+                    Succeeded = true,
+                    Message = "Your transaction is processing."
 
-                var logBill = await LogBillPayment(requestModel, providerId, merchantRef);
-
-
-                var validateRequest = new ValidateRequestModel
-                {
-                    itemCode = requestModel.PaymentCode,
-                    customerId = requestModel.CustomerId,
-                    customerPhoneNumber = requestModel.CustomerMobile,
-                    shouldVerifyCustomer = true,
-                    customerEmail = "johndoe@maildrop.cc",
-                    customerName = "John Doe",
-                    amount = requestModel.Amount,
-                    Provider = Enums.Providers.ZIKORA
                 };
-
-                //instantiate the validate request endpoint.
-                var validate = await Validate(validateRequest);
-
-                VendRequest vendRequest = CreateVendRequest(requestModel, merchantRef);
-
-                var vendBill = await _cyberPayProvider.Vend(vendRequest);
-
-                await UpdateBillPayment(vendBill, logBill, providerId);
-
-                return vendBill;
 
             }
             catch (Exception ex)
@@ -339,6 +363,100 @@ namespace USSDMiddleware.Core.Managers
                 throw new NotSuccessfulException($"An error occured while processing request: {ex}");
             }
         }
+
+        public async Task<VendResponse> VendBill(ClientVendRequest requestModel, Optional<User> userDetail,
+            DebitCustomerAccountResponse debitResponse, CustomerDebit logdebitRequest, string merchantRef)
+        {
+            //var settings = new ZIKORAModelExtension();
+            //settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
+            //settings.GLCode = _configuration["ApiOptions:Zikora:GLCode"];
+            //settings.NibssCode = _configuration["ApiOptions:Zikora:NibssCode"];
+            //settings.FundTransferFee = decimal.Parse(_configuration["ApiOptions:Zikora:FundTransferFee"]);
+            //settings.BankCode = _configuration["ApiOptions:Zikora:BankCode"];
+            //string merchantRef = settings.RetrievalReference;
+
+            //CustomerDebit customerDebit = new CustomerDebit
+            //{
+            //    Amount = requestModel.Amount,
+            //    AccountNumber = requestModel.DrAccountNumber,
+            //    RetrievalReference = settings.RetrievalReference,
+            //    Narration = $"Bills payment {requestModel.PaymentCode} for {requestModel.CustomerId}",
+            //    GLCode = settings.GLCode,
+            //    NibssCode = settings.NibssCode,
+            //    ProviderId = providerId,
+            //    BankCode = settings.BankCode,
+            //};
+
+            //CustomerDebit logdebitRequest = await _payOutManager.LogCustomerDebit(customerDebit);
+
+            //var debitRequest = new DebitCustomerAccountRequest
+            //{
+            //    RetrievalReference = settings.RetrievalReference,
+            //    AccountNumber = requestModel.DrAccountNumber,
+            //    Amount = requestModel.Amount.ToString(),
+            //    Narration = $"Debit Customer account {requestModel.DrAccountNumber}  for {requestModel.CustomerId}",
+            //};
+
+            //DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
+            var provider = _providerSelector.GetProvider(requestModel.Provider);
+            var providerId = await provider.GetProviderId(_providerManager);
+            CustomerDebit updateCustomerDebit = await _payOutManager.UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
+
+            if (!debitResponse.ResponseCode.Equals("00"))
+            {
+                return new VendResponse
+                {
+                    Succeeded = false,
+                    Message = "Failed to debit customer account, insufficient fund."
+                };
+            }
+            ReQueryRequest requeryPayload = new ReQueryRequest
+            {
+                RetrievalReference = debitResponse.Reference,
+                Amount = requestModel.Amount
+            };
+
+            var requery = await provider.StatusQuery(requeryPayload);
+            if (requery != null && !requery.Code.Equals("00"))
+            {
+                return new VendResponse
+                {
+                    Succeeded = false,
+                    Message = "Requery failed."
+                };
+            }
+
+            var logBill = await LogBillPayment(requestModel, providerId, merchantRef);
+
+
+            var validateRequest = new ValidateRequestModel
+            {
+                itemCode = requestModel.PaymentCode,
+                customerId = requestModel.CustomerId,
+                customerPhoneNumber = requestModel.CustomerMobile,
+                shouldVerifyCustomer = true,
+                customerEmail = userDetail.Value.Email,
+                customerName = userDetail.Value.CustomerName,
+                amount = requestModel.Amount,
+                Provider = Enums.Providers.ZIKORA
+            };
+
+            var validate = await Validate(validateRequest);
+            if (validate == null || validate.Data == null)
+            {
+                throw new NotSuccessfulException($"Invalid customerId : {requestModel.CustomerId}.");
+            }
+            requestModel.validationReference = validate.Data.ValidationRef;
+            VendRequest vendRequest = CreateVendRequest(requestModel, merchantRef);
+
+
+            var vendBill = await _cyberPayProvider.Vend(vendRequest);
+
+            await UpdateBillPayment(vendBill, logBill, providerId);
+
+            return vendBill;
+        }
+
 
         private VendResponse ValidateRequest(ClientVendRequest requestModel)
         {
@@ -370,7 +488,7 @@ namespace USSDMiddleware.Core.Managers
             return new VendResponse { Succeeded = true };
         }
 
-       // private async Task<VendResponse> ValidateUserDetail(Optional<User> userDetail, ClientVendRequest requestModel)
+        // private async Task<VendResponse> ValidateUserDetail(Optional<User> userDetail, ClientVendRequest requestModel)
         private async Task<VendResponse> ValidateUserDetail(Optional<User> userDetail, string providerId)
         {
             if (userDetail == null)
@@ -378,12 +496,7 @@ namespace USSDMiddleware.Core.Managers
                 return VendResponseWithMessage("Request from an invalid customer mobile");
             }
 
-            bool isPinValid =  await _userManager.ValidateTransactionPin(userDetail.Value.TransactionPin, userDetail.Value.PhoneNumber, providerId);
-            if (!isPinValid)
-            {
-                throw new NotSuccessfulException("Invalid phone number or pin.");
-            }
-            
+
             return new VendResponse { Succeeded = true };
         }
 

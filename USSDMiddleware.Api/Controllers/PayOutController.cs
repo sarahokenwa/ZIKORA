@@ -5,6 +5,7 @@ using USSDMiddleware.Core.Models;
 using USSDMiddleware.Core.Models.PayOut;
 using USSDMiddleware.Core.Interfaces.Managers;
 using Microsoft.AspNetCore.Authorization;
+using USSDMiddleware.Core.Models.Request;
 
 namespace USSDMiddleware.Api.Controllers
 {
@@ -20,7 +21,7 @@ namespace USSDMiddleware.Api.Controllers
         }
 
         [HttpPost("instant")]
-        public async Task<IActionResult> InstantPayOutTransfer([FromBody] InstantPayOutRequest request)
+        public async Task<IActionResult> InstantPayOutTransfer([FromBody] InstantPayOutRequestExtension request)
         {
             var result = await _payOutManager.InstantPayOut(request);
 
