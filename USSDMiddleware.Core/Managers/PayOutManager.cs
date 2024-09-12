@@ -323,15 +323,6 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
-                if (string.IsNullOrEmpty(request.RetrievalReference))
-                {
-                    return new IntraBankTransferResponse
-                    {
-                        ResponseMessage = "Sender name is required",
-                        IsSuccessful = false
-                    };
-                }
-
                 var settings = new ZIKORAModelExtension();
                 settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
 
