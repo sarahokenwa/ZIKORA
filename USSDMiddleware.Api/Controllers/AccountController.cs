@@ -48,8 +48,8 @@ namespace USSDMiddleware.Api.Controllers
             });
         }
 
-        [HttpGet("validate-account")]
-        public async Task<IActionResult> GetUserByAccountNumber([FromQuery] AccountValidationRequest request)
+        [HttpPost("validate-account")]
+        public async Task<IActionResult> GetUserByAccountNumber([FromBody] AccountValidationRequest request)
         {
             var result = await _accountManager.GetUserByAccountNumber(request);
 
