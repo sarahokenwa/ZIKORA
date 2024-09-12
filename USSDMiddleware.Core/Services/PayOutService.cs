@@ -55,14 +55,14 @@ namespace USSDMiddleware.Core.Services
                 }
                 else
                 {
-                    _log.LogInformation("Name Enquiry Response: null");
-                    throw new Exception("Name enquiry response failed.");
+                    _log.LogInformation($"Name Enquiry Response: {JsonConvert.SerializeObject(nameEnquiryResponse)}");
+                    throw new NotSuccessfulException($"Name enquiry failed: {JsonConvert.SerializeObject(nameEnquiryResponse)}");
                 }
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while checking name enquiry");
-                throw new NotSuccessfulException("Failed to retrieve account name.");
+                _log.LogError(ex, "An error occurred while verifying account name.");
+                throw new NotSuccessfulException($"Failed to retrieve account name: {ex.Message}");
             }
         }
 
@@ -83,7 +83,7 @@ namespace USSDMiddleware.Core.Services
                 if (nameEnquiryResponse == null || string.IsNullOrEmpty(nameEnquiryResponse.AccountName))
                 {
                     _log.LogInformation($"Name Enquiry failed. Cannot proceed with instant payout: {JsonConvert.SerializeObject(nameEnquiryResponse)}");
-                    throw new NotSuccessfulException($"Failed to retrieve account name for instant payout: {JsonConvert.SerializeObject(nameEnquiryResponse)}");
+                    throw new NotSuccessfulException($"Failed to retrieve account name: {JsonConvert.SerializeObject(nameEnquiryResponse)}");
                 }
 
                 var credentials = await _cyberPayProvider.GetClientCredentials();
@@ -95,16 +95,14 @@ namespace USSDMiddleware.Core.Services
                     request.AccountNumber,
                     request.SenderName,
                     request.BeneficiaryName,
-                   // request.BeneficiaryAccountNumber,
                     request.Amount,
                     request.Narration,
-                   // request.PhoneNumber,
+                    request.BankCode,
                     MerchantRef = merchantReference,
                     WalletCode = _configuration["ApiOptions:Zikora:WalletCode"],
                     WebHook = _configuration["ApiOptions:Zikora:WebHook"],
                     WalletType = _configuration["ApiOptions:Zikora:WalletType"],
                     MerchantCharge = _configuration["ApiOptions:Zikora:MerchantCharge"],
-                    BankCode = _configuration["ApiOptions:Zikora:BankCode"],
                 };
 
                 var stringContent = JsonConvert.SerializeObject(instantPayOut);
@@ -115,7 +113,7 @@ namespace USSDMiddleware.Core.Services
 
                 var instantPayOutResponse = await _httpService.Post<InstantPayOutResponse>(url, httpContent, credentials.access_token);
 
-                if (instantPayOutResponse != null)
+                if (instantPayOutResponse.Code == "01" && instantPayOutResponse.Succeeded == true)
                 {
                     _log.LogInformation($"Instant PayOut Response: {JsonConvert.SerializeObject(instantPayOutResponse)}");
                     return instantPayOutResponse;
@@ -141,9 +139,9 @@ namespace USSDMiddleware.Core.Services
                 var url = $"{_apiOptions.CyberPayFundTransferUrl}/reference/{reference}";
                 var response = await _httpService.Get<RequeryResponse>(url, credentials.access_token);
 
-                if (response == null || !response.Succeeded)
+                if (response == null || !response.IsSuccessful)
                 {
-                    _log.LogError($"Failed to retrieve requery response. HTTP status code: {response?.Code ?? "null"}");
+                    _log.LogError($"Failed to retrieve requery response. HTTP status code: {response?.ResponseCode?? "null"}");
                     return null;
                 }
 

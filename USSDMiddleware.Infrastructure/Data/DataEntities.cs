@@ -19,6 +19,8 @@ namespace USSDMiddleware.Infrastructure.Data
         public DbSet<FundTransfer> FundTransfers { get; set; }
         public DbSet<CustomerDebit> CustomerDebits { get; set; }
         public DbSet<Card> Cards { get; set; }
+        public DbSet<BlockAccount> BlockAccounts { get; set; }
+        public DbSet<IntraBankTransfer> IntraBankTransfers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

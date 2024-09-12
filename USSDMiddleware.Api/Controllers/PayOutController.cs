@@ -2,7 +2,6 @@
 using static USSDMiddleware.Core.Constants;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Models;
-using USSDMiddleware.Core.Models.PayOut;
 using USSDMiddleware.Core.Interfaces.Managers;
 using Microsoft.AspNetCore.Authorization;
 using USSDMiddleware.Core.Models.Request;
@@ -26,6 +25,19 @@ namespace USSDMiddleware.Api.Controllers
             var result = await _payOutManager.InstantPayOut(request);
 
             return Ok(new Response<InstantPayOutResponse>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = result
+            });
+        }
+
+        [HttpPost("intra-bank-transfer")]
+        public async Task<IActionResult> IntraBankTransfer([FromBody] IntraBankTransferRequestExtension request)
+        {
+            var result = await _payOutManager.IntraBankTransfer(request);
+
+            return Ok(new Response<IntraBankTransferResponse>()
             {
                 Code = ResponseCodes.Successful,
                 Succeeded = true,

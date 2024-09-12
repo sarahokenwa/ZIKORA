@@ -66,7 +66,6 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
                 
-                //var user = await _userManager.ValidateTransactionPin(request.TransactionPin);
                 var userExists = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
 
                 if (userExists == null)
@@ -165,11 +164,6 @@ namespace USSDMiddleware.Core.Managers
         {
             try
             {
-                var provider = _providerSelector.GetProvider(request.Provider);
-                var providerId = await provider.GetProviderId(_providerManager);
-
-                string reference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
-               
                 if (string.IsNullOrEmpty(request.AccountNumber))
                 {
                     return new FreezeCardResponse
@@ -192,6 +186,41 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
+                if (string.IsNullOrEmpty(request.PhoneNumber))
+                {
+                    return new FreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseCode = null,
+                        ResponseMessage = "PhoneNumber  is required",
+                        TransactionReference = ""
+                    };
+                }
+
+                if (string.IsNullOrEmpty(request.TransactionPin))
+                {
+                    return new FreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseCode = null,
+                        ResponseMessage = "Transaction pin  is required",
+                        TransactionReference = ""
+                    };
+                }
+
+
+                var provider = _providerSelector.GetProvider(request.Provider);
+                var providerId = await provider.GetProviderId(_providerManager);
+
+                bool isPinValid = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
+                if (!isPinValid)
+                {
+                    throw new NotSuccessfulException("Invalid phone number or pin.");
+                }
+
+                string reference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
+               
+                
                 var getCustomerCardRequest = new GetCustomerCardRequest
                 {
                     AccountNo = request.AccountNumber,
@@ -235,10 +264,15 @@ namespace USSDMiddleware.Core.Managers
         {
             try
             {
-                var provider = _providerSelector.GetProvider(request.Provider);
-                var providerId = await provider.GetProviderId(_providerManager);
-
-                var reference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
+                if (string.IsNullOrEmpty(request.AccountNumber))
+                {
+                    return new UnFreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "AccountNumber  is required",
+                        Reference = ""
+                    };
+                }
 
                 if (string.IsNullOrEmpty(request.Reason))
                 {
@@ -246,9 +280,41 @@ namespace USSDMiddleware.Core.Managers
                     {
                         IsSuccessful = false,
                         ResponseMessage = "Reason  is required",
-                        Reference = reference
+                        Reference = ""
                     };
                 }
+
+                if (string.IsNullOrEmpty(request.PhoneNumber))
+                {
+                    return new UnFreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "PhoneNumber  is required",
+                        Reference = ""
+                    };
+                }
+
+                if (string.IsNullOrEmpty(request.TransactionPin))
+                {
+                    return new UnFreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "Transaction pin  is required",
+                        Reference = ""
+                    };
+                }
+
+
+                var provider = _providerSelector.GetProvider(request.Provider);
+                var providerId = await provider.GetProviderId(_providerManager);
+
+                bool isPinValid = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
+                if (!isPinValid)
+                {
+                    throw new NotSuccessfulException("Invalid phone number or pin.");
+                }
+
+                var reference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
 
                 var getCustomerCardRequest = new GetCustomerCardRequest
                 {
@@ -263,7 +329,8 @@ namespace USSDMiddleware.Core.Managers
                     string serialNo = cardResponse.Cards.First().SerialNo;
 
                     request.SerialNo = serialNo;
-                    request.Reference = reference; cardResponse = await provider.GetCustomerCards(getCustomerCardRequest);
+                    
+                    cardResponse = await provider.GetCustomerCards(getCustomerCardRequest);
 
                     var unfreezeCardResponse = await provider.UnFreezeCard(request);
 

@@ -68,136 +68,6 @@ namespace USSDMiddleware.Core.Managers
             return await _cyberPayProvider.GetPaymentItems(billerId);
         }
 
-        //public async Task<VendResponse> Vend(ClientVendRequest requestModel)
-        //{
-        //    var provider = _providerSelector.GetProvider(requestModel.Provider);
-        //    var providerId = await provider.GetProviderId(_providerManager);
-        //    if (string.IsNullOrEmpty(requestModel.CustomerMobile))
-        //    {
-        //        return new VendResponse
-        //        {
-        //            Message = "Customer mobile is required",
-        //            Succeeded = false
-        //        };
-        //    }
-
-        //    if (string.IsNullOrEmpty(requestModel.PaymentCode))
-        //    {
-        //        return new VendResponse
-        //        {
-        //            Message = "Payment code is required",
-        //            Succeeded = false
-        //        };
-        //    }
-
-        //    if (requestModel.Amount < 1)
-        //    {
-        //        return new VendResponse
-        //        {
-        //            Message = "Invalid transasction amount",
-        //            Succeeded = false
-        //        };
-        //    }
-
-        //    if (string.IsNullOrEmpty(requestModel.CustomerId))
-        //    {
-        //        return new VendResponse
-        //        {
-        //            Message = "Customer ID is required",
-        //            Succeeded = false
-        //        };
-        //    }
-        //    if (string.IsNullOrEmpty(requestModel.DrAccountNumber))
-        //    {
-        //        return new VendResponse
-        //        {
-        //            Message = "Customer Account number is required",
-        //            Succeeded = false
-        //        };
-        //    }
-        //    var userDetail = await _userRepository.GetByPhoneNumber(requestModel.CustomerMobile, providerId);
-
-        //    if (userDetail == null)
-        //    {
-        //        return new VendResponse
-        //        {
-        //            Message = "Request from an invalid customer mobile",
-        //            Succeeded = false
-        //        };
-        //    }
-        //    if (!userDetail.Value.TransactionPin.Equals(requestModel.TransactionPin))
-        //    {
-        //        return new VendResponse
-        //        {
-        //            Message = "Invalid Transaction Pin",
-        //            Succeeded = false
-        //        };
-        //    }
-
-        //    string merchantRef = Guid.NewGuid().ToString();
-
-
-        //    var logBill = await _billsRepository.LogBillPayment(Builder<BillsPayment>.CreateNew()
-        //           .With(u => u.Amount = requestModel.Amount)
-        //           .With(u => u.validationref = requestModel.validationReference)
-        //           .With(u => u.CustomerId = requestModel.CustomerId)
-        //           .With(u => u.ProviderId = providerId)
-        //           .With(u => u.PhoneNumber = requestModel.CustomerMobile)
-        //           .With(u => u.merchantref = merchantRef)
-        //           .With(u => u.CreatedOn = DateTime.Now)
-        //           .With(u => u.UpdatedOn = DateTime.Now)
-        //           .With(u => u.Fee = requestModel.fee)
-        //             .With(u => u.itemcode = requestModel.PaymentCode)
-        //           .Build());
-        //    //debit zikora customers account before proceeding
-        //   /** var debitCustomer = await provider.DebitCustomerAccount(new DebitCustomerAccountRequest
-        //    {
-        //        AccountNumber = requestModel.DrAccountNumber,
-        //        Amount = requestModel.Amount,
-        //        Fee = requestModel.fee,
-        //        Narration = "Bills/Airtime",
-        //        GLCode = "",
-        //        NibssCode = "",
-        //        RetrievalReference = merchantRef
-        //    });
-
-        //    if (debitCustomer == null)
-        //    {
-        //        return new VendResponse
-        //        {
-        //            Message = "Could not debit account",
-        //            Succeeded = false
-        //        };
-        //    }**/
-        //    VendRequest request = new VendRequest
-        //    {
-        //        amount = requestModel.Amount,
-        //        merchantRef = merchantRef,
-        //        validationRef = requestModel.validationReference
-        //    };
-        //    var vendBill = await _cyberPayProvider.Vend(request);
-
-
-        //    if (vendBill.Succeeded && vendBill.Data != null)
-        //    {
-        //        logBill.processorRef = vendBill.Data.TransactionReference;
-        //        logBill.responsecode = "Successfull";
-
-        //    }
-        //    else
-        //    {
-        //        logBill.responsecode = "Failed";
-        //    }
-        //    await _billsRepository.UpdateBillPayment(logBill, providerId);
-
-        //    return vendBill;
-
-
-
-        //}
-
-
-
         public async Task<ValidateResponse> Validate(ValidateRequestModel requestModel)
         {
             var provider = _providerSelector.GetProvider(requestModel.Provider);
@@ -258,6 +128,7 @@ namespace USSDMiddleware.Core.Managers
         {
             try
             {
+                var response = new VendResponse();
                 var validationResult = ValidateRequest(requestModel);
                 if (!validationResult.Succeeded)
                 {
@@ -278,7 +149,6 @@ namespace USSDMiddleware.Core.Managers
                 {
                     return userValidationResult;
                 }
-
 
                 var settings = new ZIKORAModelExtension();
                 settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
@@ -312,50 +182,22 @@ namespace USSDMiddleware.Core.Managers
 
                 DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
 
-                //   CustomerDebit updateCustomerDebit = await _payOutManager.UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
+                CustomerDebit updateCustomerDebit = await _payOutManager.UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
 
-                //if (!debitResponse.ResponseCode.Equals("00"))
-                //{
-                //    throw new NotSuccessfulException("Failed to debit customer account, insufficient fund.");
-                //}
-
-                //var logBill = await LogBillPayment(requestModel, providerId, merchantRef);
-
-
-                //var validateRequest = new ValidateRequestModel
-                //{
-                //    itemCode = requestModel.PaymentCode,
-                //    customerId = requestModel.CustomerId,
-                //    customerPhoneNumber = requestModel.CustomerMobile,
-                //    shouldVerifyCustomer = true,
-                //    customerEmail = userDetail.Value.Email,
-                //    customerName = userDetail.Value.CustomerName,
-                //    amount = requestModel.Amount,
-                //    Provider = Enums.Providers.ZIKORA
-                //};
-
-                //var validate = await Validate(validateRequest);
-                //if(validate == null || validate.Data == null)
-                //{
-                //    throw new NotSuccessfulException($"Invalid customerId : {requestModel.CustomerId}.");
-                //}
-                //requestModel.validationReference = validate.Data.ValidationRef;
-                //VendRequest vendRequest = CreateVendRequest(requestModel, merchantRef);
-
-
-                //var vendBill = await _cyberPayProvider.Vend(vendRequest);
-
-                //await UpdateBillPayment(vendBill, logBill, providerId);
-
-                //return vendBill;
-                await _backgroundService.EnqueueProcess(() => VendBill(requestModel, userDetail, debitResponse, logdebitRequest, merchantRef));
-
-                return new VendResponse
+                if (debitResponse != null && debitResponse.IsSuccessful)
                 {
-                    Succeeded = true,
-                    Message = "Your transaction is processing."
+                    await _backgroundService.EnqueueProcess(() => VendBill(requestModel, userDetail, debitResponse, logdebitRequest, merchantRef));
+                    response.Succeeded = true;
+                    response.Message = "Your request is processing";
 
-                };
+                }
+                else
+                {
+                    response.Succeeded = false;
+                    response.Message = debitResponse.ResponseMessage;
+                }
+
+                return response;
 
             }
             catch (Exception ex)
@@ -367,40 +209,8 @@ namespace USSDMiddleware.Core.Managers
         public async Task<VendResponse> VendBill(ClientVendRequest requestModel, Optional<User> userDetail,
             DebitCustomerAccountResponse debitResponse, CustomerDebit logdebitRequest, string merchantRef)
         {
-            //var settings = new ZIKORAModelExtension();
-            //settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
-            //settings.GLCode = _configuration["ApiOptions:Zikora:GLCode"];
-            //settings.NibssCode = _configuration["ApiOptions:Zikora:NibssCode"];
-            //settings.FundTransferFee = decimal.Parse(_configuration["ApiOptions:Zikora:FundTransferFee"]);
-            //settings.BankCode = _configuration["ApiOptions:Zikora:BankCode"];
-            //string merchantRef = settings.RetrievalReference;
-
-            //CustomerDebit customerDebit = new CustomerDebit
-            //{
-            //    Amount = requestModel.Amount,
-            //    AccountNumber = requestModel.DrAccountNumber,
-            //    RetrievalReference = settings.RetrievalReference,
-            //    Narration = $"Bills payment {requestModel.PaymentCode} for {requestModel.CustomerId}",
-            //    GLCode = settings.GLCode,
-            //    NibssCode = settings.NibssCode,
-            //    ProviderId = providerId,
-            //    BankCode = settings.BankCode,
-            //};
-
-            //CustomerDebit logdebitRequest = await _payOutManager.LogCustomerDebit(customerDebit);
-
-            //var debitRequest = new DebitCustomerAccountRequest
-            //{
-            //    RetrievalReference = settings.RetrievalReference,
-            //    AccountNumber = requestModel.DrAccountNumber,
-            //    Amount = requestModel.Amount.ToString(),
-            //    Narration = $"Debit Customer account {requestModel.DrAccountNumber}  for {requestModel.CustomerId}",
-            //};
-
-            //DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
             var provider = _providerSelector.GetProvider(requestModel.Provider);
             var providerId = await provider.GetProviderId(_providerManager);
-            CustomerDebit updateCustomerDebit = await _payOutManager.UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
 
             if (!debitResponse.ResponseCode.Equals("00"))
             {
@@ -412,12 +222,12 @@ namespace USSDMiddleware.Core.Managers
             }
             ReQueryRequest requeryPayload = new ReQueryRequest
             {
-                RetrievalReference = debitResponse.Reference,
+                RetrievalReference = merchantRef,
                 Amount = requestModel.Amount
             };
 
             var requery = await provider.StatusQuery(requeryPayload);
-            if (requery != null && !requery.Code.Equals("00"))
+            if (requery != null && !requery.ResponseCode.Equals("00"))
             {
                 return new VendResponse
                 {
@@ -488,7 +298,6 @@ namespace USSDMiddleware.Core.Managers
             return new VendResponse { Succeeded = true };
         }
 
-        // private async Task<VendResponse> ValidateUserDetail(Optional<User> userDetail, ClientVendRequest requestModel)
         private async Task<VendResponse> ValidateUserDetail(Optional<User> userDetail, string providerId)
         {
             if (userDetail == null)

@@ -26,6 +26,7 @@ namespace USSDMiddleware.Core.Managers
         private readonly ICustomerDebitRepository _customerDebitRepository;
         private readonly IUserManager _userManager;
         private readonly IBackgroundService _backgroundService;
+        private readonly IIntraBankTransferRepository _intraBankTransferRepository;
 
 
         public PayOutManager(IPayOutService payOutService,
@@ -37,7 +38,8 @@ namespace USSDMiddleware.Core.Managers
             IInstantPayOutRepository instantPayOutRepository,
             ICustomerDebitRepository customerDebitRepository,
             IUserManager userManager,
-            IBackgroundService backgroundService)
+            IBackgroundService backgroundService,
+            IIntraBankTransferRepository intraBankTransferRepository)
         {
             _payOutService = payOutService;
             _log = log;
@@ -49,52 +51,30 @@ namespace USSDMiddleware.Core.Managers
             _customerDebitRepository = customerDebitRepository;
             _userManager = userManager;
             _backgroundService = backgroundService;
+            _intraBankTransferRepository = intraBankTransferRepository;
         }
 
-        //public async Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequest request)
         public async Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequestExtension request)
         {
-            //do not pass bankcode in the model.
             try
             {
-                var settings = new ZIKORAModelExtension();
-                settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
-                string merchantReference = settings.RetrievalReference;
+                if (string.IsNullOrEmpty(request.PhoneNumber))
+                {
+                    return new InstantPayOutResponse
+                    {
+                        Message = "Phonenumber is required",
+                        Succeeded = false
+                    };
+                }
 
-                // Extract configuration values from appsettings.
-                settings.GLCode = _configuration["ApiOptions:Zikora:GLCode"];
-                settings.NibssCode = _configuration["ApiOptions:Zikora:NibssCode"];
-                settings.FundTransferFee = decimal.Parse(_configuration["ApiOptions:Zikora:FundTransferFee"]);
-
-                Interfaces.Providers.IUssdProvider provider = _providerSelector.GetProvider(request.Provider);
-                var providerId = await provider.GetProviderId(_providerManager);
-
-                //if (string.IsNullOrEmpty(request.PhoneNumber))
-                //{
-                //    return new InstantPayOutResponse
-                //    {
-                //        Message = "Phonenumber is required",
-                //        Succeeded = false
-                //    };
-                //}
-
-                //if (string.IsNullOrEmpty(request.BeneficiaryAccountNumber))
-                //{
-                //    return new InstantPayOutResponse
-                //    {
-                //        Message = "Beneficiary account number is required",
-                //        Succeeded = false
-                //    };
-                //}
-
-                //if (string.IsNullOrEmpty(request.BeneficiaryAccountName))
-                //{
-                //    return new InstantPayOutResponse
-                //    {
-                //        Message = "Beneficiary account name is required",
-                //        Succeeded = false
-                //    };
-                //}
+                if (string.IsNullOrEmpty(request.SenderAccountNumber))
+                {
+                    return new InstantPayOutResponse
+                    {
+                        Message = "Sender account number is required",
+                        Succeeded = false
+                    };
+                }
 
                 if (request.Amount < 1)
                 {
@@ -123,6 +103,20 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
+                var response = new InstantPayOutResponse();
+
+                var settings = new ZIKORAModelExtension();
+                settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
+                string merchantReference = settings.RetrievalReference;
+
+                // Extract configuration values from appsettings.
+                settings.GLCode = _configuration["ApiOptions:Zikora:GLCode"];
+                settings.NibssCode = _configuration["ApiOptions:Zikora:NibssCode"];
+                settings.FundTransferFee = decimal.Parse(_configuration["ApiOptions:Zikora:FundTransferFee"]);
+
+                Interfaces.Providers.IUssdProvider provider = _providerSelector.GetProvider(request.Provider);
+                var providerId = await provider.GetProviderId(_providerManager);
+
                 var transactionPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
                 if (transactionPin)
                 {
@@ -130,7 +124,7 @@ namespace USSDMiddleware.Core.Managers
                     CustomerDebit customerDebit = new CustomerDebit
                     {
                         Amount = request.Amount,
-                        AccountNumber = request.AccountNumber,
+                        AccountNumber = request.SenderAccountNumber,
                         RetrievalReference = settings.RetrievalReference,
                         Narration = request.Narration,
                         GLCode = settings.GLCode,
@@ -142,7 +136,7 @@ namespace USSDMiddleware.Core.Managers
                     var debitRequest = new DebitCustomerAccountRequest
                     {
                         RetrievalReference = settings.RetrievalReference,
-                        AccountNumber = request.AccountNumber,
+                        AccountNumber = request.SenderAccountNumber,
                         Amount = request.Amount.ToString(),
                         Narration = $"Debit Customer account to {request.BeneficiaryName}",
                     };
@@ -150,50 +144,24 @@ namespace USSDMiddleware.Core.Managers
                     CustomerDebit logdebitRequest = await LogCustomerDebit(customerDebit);
 
                     DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
+                    CustomerDebit updateCustomerDebit = await UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
 
-                    await _backgroundService.EnqueueProcess(() => InstantPayOutBill(debitResponse, logdebitRequest, request, merchantReference));
-
-                    //CustomerDebit updateCustomerDebit = await UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
-
-                    //if (debitResponse.IsSuccessful)
-                    //{
-
-                    //    FundTransfer logInstantPayOut = await LogInstantPayment(request, merchantReference, providerId);
-
-
-                    //    var instantPayOut = await _payOutService.InstantPayOut(request, merchantReference);
-                    //    if (instantPayOut.Succeeded && instantPayOut.Data != null)
-                    //    {
-                    //        logInstantPayOut.ProcessorRef = instantPayOut.Data.Data;
-                    //        instantPayOut.Code = "200";
-                    //    }
-                    //    else
-                    //    {
-                    //        instantPayOut.Code = "500";
-                    //    }
-
-                    //    var updateinstantPayOut = await _instantPayOutRepository.UpdateInstantPayment(logInstantPayOut, providerId);
-                    //    return instantPayOut;
-
-                    //}
+                    if (debitResponse != null && debitResponse.IsSuccessful)
+                    {
+                        await _backgroundService.EnqueueProcess(() => InstantPayOutBill(debitResponse, logdebitRequest, request, merchantReference));
+                        response.Succeeded = true;
+                        response.Message = "Request is being processed.";
+                        
+                    }
+                    else
+                    {
+                        response.Succeeded = false;
+                        response.Message = debitResponse.ResponseMessage;
+                        
+                    }
                 }
 
-                return new InstantPayOutResponse
-                {
-                    Succeeded = false,
-                    Message = "Failed to credit the customer account."
-                };
-                //return new InstantPayOutResponse
-                //{
-                //    Data = new InstantPayOutResponse.DataResponse
-                //    {
-                //        SessionId = "null",
-                //        Succeeded = false,
-                //        Code = "Failed",
-                //        Message = "Instant payout failed.",
-                //        Data = null
-                //    }
-                //};
+                return response;
 
             }
             catch (Exception ex)
@@ -208,7 +176,6 @@ namespace USSDMiddleware.Core.Managers
         {
             var provider = _providerSelector.GetProvider(request.Provider);
             var providerId = await provider.GetProviderId(_providerManager);
-            CustomerDebit updateCustomerDebit = await UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
 
             if (!debitResponse.ResponseCode.Equals("00"))
             {
@@ -220,12 +187,12 @@ namespace USSDMiddleware.Core.Managers
             }
             ReQueryRequest requeryPayload = new ReQueryRequest
             {
-                RetrievalReference = debitResponse.Reference,
+                RetrievalReference = merchantReference,
                 Amount = request.Amount
             };
 
             var requery = await provider.StatusQuery(requeryPayload);
-            if (requery != null && !requery.Code.Equals("00"))
+            if (requery != null && !requery.ResponseCode.Equals("00"))
             {
                 return new InstantPayOutResponse
                 {
@@ -240,19 +207,21 @@ namespace USSDMiddleware.Core.Managers
             var instantPayOut = await _payOutService.InstantPayOut(request, merchantReference);
             if (instantPayOut.Succeeded && instantPayOut.Data != null)
             {
-                logInstantPayOut.ProcessorRef = instantPayOut.Data.Data;
-                instantPayOut.Code = "200";
+                logInstantPayOut.ProcessorRef = instantPayOut.Data;
+                logInstantPayOut.Data = instantPayOut.Data;
+                logInstantPayOut.Succeeded = true;
+                logInstantPayOut.Code = instantPayOut.Code;
+                logInstantPayOut.SessionId = instantPayOut.SessionId;
+                logInstantPayOut.Message = instantPayOut.Message;
+
             }
             else
             {
-                instantPayOut.Code = "500";
+                logInstantPayOut.Code = instantPayOut.Code;
             }
 
             var updateinstantPayOut = await _instantPayOutRepository.UpdateInstantPayment(logInstantPayOut, providerId);
             return instantPayOut;
-
-
-
 
         }
 
@@ -290,7 +259,6 @@ namespace USSDMiddleware.Core.Managers
 
         }
 
-        // public async Task<FundTransfer> LogInstantPayment(InstantPayOutRequest request, string merchantReference, string providerId)
         public async Task<FundTransfer> LogInstantPayment(InstantPayOutRequestExtension request, string merchantReference, string providerId)
         {
             return await _instantPayOutRepository.LogInstantPayment(Builder<FundTransfer>.CreateNew()
@@ -298,7 +266,8 @@ namespace USSDMiddleware.Core.Managers
                      .With(u => u.AccountNumber = request.AccountNumber)
                      .With(u => u.BeneficiaryName = request.BeneficiaryName)
                      .With(u => u.SenderName = request.SenderName)
-                     .With(u => u.BankCode = _configuration["ApiOptions:Zikora:BankCode"])
+                     .With(u => u.BankCode = request.BankCode)
+                    // .With(u => u.BankCode = _configuration["ApiOptions:Zikora:BankCode"])
                      .With(u => u.ProviderId = providerId)
                      .With(u => u.Amount = request.Amount)
                      .With(u => u.PhoneNumber = request.PhoneNumber)
@@ -313,6 +282,156 @@ namespace USSDMiddleware.Core.Managers
 
                      .Build());
         }
+
+        public async Task<IntraBankTransferResponse> IntraBankTransfer(IntraBankTransferRequestExtension request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request.Narration))
+                {
+                    return new IntraBankTransferResponse
+                    {
+                        ResponseMessage = "Narration is required",
+                        IsSuccessful = false
+                    };
+                }
+
+                if (string.IsNullOrEmpty(request.FromAccountNumber))
+                {
+                    return new IntraBankTransferResponse
+                    {
+                        ResponseMessage = "Sender account number is required",
+                        IsSuccessful = false
+                    };
+                }
+
+                if (string.IsNullOrEmpty(request.ToAccountNumber))
+                {
+                    return new IntraBankTransferResponse
+                    {
+                        ResponseMessage = "Beneficiary account number is required",
+                        IsSuccessful = false
+                    };
+                }
+
+                if (request.Amount < 1)
+                {
+                    return new IntraBankTransferResponse
+                    {
+                        ResponseMessage = "Invalid transasction amount",
+                        IsSuccessful = false
+                    };
+                }
+
+                if (string.IsNullOrEmpty(request.RetrievalReference))
+                {
+                    return new IntraBankTransferResponse
+                    {
+                        ResponseMessage = "Sender name is required",
+                        IsSuccessful = false
+                    };
+                }
+
+                var settings = new ZIKORAModelExtension();
+                settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
+
+                Interfaces.Providers.IUssdProvider provider = _providerSelector.GetProvider(request.Provider);
+                var providerId = await provider.GetProviderId(_providerManager);
+
+                var fromUser = await provider.GetUserByAccountNumber(request.FromAccountNumber);
+                if (fromUser == null)
+                {
+                    return new IntraBankTransferResponse
+                    {
+                        ResponseMessage = $"Sender with account number {request.FromAccountNumber} does not exist.",
+                        IsSuccessful = false
+                    };
+                }
+
+                var toUser = await provider.GetUserByAccountNumber(request.ToAccountNumber);
+                if (toUser == null)
+                {
+                    return new IntraBankTransferResponse
+                    {
+                        ResponseMessage = $"Beneficiary with account number {request.ToAccountNumber} does not exist.",
+                        IsSuccessful = false
+                    };
+                }
+                var transactionPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
+                if (transactionPin == null)
+                {
+                    throw new NotSuccessfulException("Invalid phone number or pin");
+                }
+
+                var intraBankTransfer = new IntraBankTransfer
+                {
+                    FromAccountNumber = request.FromAccountNumber,
+                    ToAccountNumber = request.ToAccountNumber,
+                    Fee = decimal.Parse(_configuration["ApiOptions:Zikora:FundTransferFee"]),
+                    ProviderId = providerId,
+                    RetrievalReference = settings.RetrievalReference,
+                    Narration = request.Narration,
+                    Amount = request.Amount 
+                };
+
+                var intraBankTransferRequest = new IntraBankTransferRequest
+                {
+                    RetrievalReference = settings.RetrievalReference,
+                    FromAccountNumber = request.FromAccountNumber,
+                    ToAccountNumber = request.ToAccountNumber,
+                    Amount = request.Amount,
+                    Fee = intraBankTransfer.Fee,
+                    Narration = $"Debit Customer account to {request.ToAccountNumber}",
+                };
+
+                IntraBankTransfer logIntraBankTransfer = await LogIntraBankTransfer(intraBankTransfer);
+
+                IntraBankTransferResponse intraBankTransferResponse = await provider.IntraBankTransfer(intraBankTransferRequest);
+                IntraBankTransfer updateIntraBankTransfer = await UpdateIntraBankTransfer(intraBankTransferResponse, logIntraBankTransfer, providerId);
+
+                return intraBankTransferResponse;
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "An error occurred while trying to make instant payment.");
+                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Instant payout failed.");
+            }
+        }
+
+        public async Task<IntraBankTransfer> LogIntraBankTransfer(IntraBankTransfer request)
+        {
+            return await _intraBankTransferRepository.LogIntraBankTransfer(Builder<IntraBankTransfer>.CreateNew()
+              .With(d => d.RetrievalReference = request.RetrievalReference)
+              .With(d => d.ToAccountNumber = request.ToAccountNumber)
+              .With(d => d.FromAccountNumber = request.FromAccountNumber)
+              .With(d => d.ProviderId = request.ProviderId)
+              .With(d => d.Amount = request.Amount)
+              .With(d => d.Narration = request.Narration)
+              .With(d => d.Fee = request.Fee > 0 ? request.Fee : 0.0m)
+              .With(d => d.CreatedOn = DateTime.Now)
+            .With(d => d.UpdatedOn = DateTime.Now)
+            .Build());
+
+        }
+
+        public async Task<IntraBankTransfer> UpdateIntraBankTransfer(IntraBankTransferResponse intraBankTransferResponse, IntraBankTransfer logIntraBankTransferRequest, string providerId)
+        {
+            if (intraBankTransferResponse.IsSuccessful)
+            {
+                logIntraBankTransferRequest.ProcessorRef = intraBankTransferResponse.Reference;
+                logIntraBankTransferRequest.ResponseCode = intraBankTransferResponse.ResponseCode;
+                logIntraBankTransferRequest.ResponseMessage = intraBankTransferResponse.ResponseMessage;
+                logIntraBankTransferRequest.IsSuccessful = intraBankTransferResponse.IsSuccessful;
+            }
+            else
+            {
+                throw new NotSuccessfulException("Failed to update intra bank transfer record.");
+
+            }
+            return await _intraBankTransferRepository.UpdateIntraBankTransfer(logIntraBankTransferRequest, providerId);
+
+        }
+
 
         public async Task<RequeryResponse> RequeryPayOut(string reference)
         {

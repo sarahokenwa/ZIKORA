@@ -27,6 +27,7 @@ namespace USSDMiddleware.Core.Managers
         private readonly IPayOutService _payOutService;
         private readonly IConfiguration _configuration;
         private readonly IUserManager _userManager;
+        private readonly IBlockAccountRepository _blockAccountRepository;
 
 
 
@@ -39,7 +40,8 @@ namespace USSDMiddleware.Core.Managers
             IProviderManager providerManager,
             IPayOutService payOutService,
             IConfiguration configuration,
-            IUserManager userManager)
+            IUserManager userManager,
+            IBlockAccountRepository blockAccountRepository)
         {
             _providerSelector = providerSelector;
             _userRepository = userRepository;
@@ -50,9 +52,9 @@ namespace USSDMiddleware.Core.Managers
             _payOutService = payOutService;
             _configuration = configuration;
             _userManager = userManager;
+            _blockAccountRepository = blockAccountRepository;
         }
 
-        //public async Task<CreateAccountResponse> CreateAccount(CreateAccountRequest request)
         public async Task<CreateAccountResponse> CreateAccount(CreateAccountRequestExtension request)
         {
             try
@@ -74,16 +76,15 @@ namespace USSDMiddleware.Core.Managers
                         $"A user has already exist for this reference {validationLog.ValidationReference}");
                 }
                 byte[] salt = Utility.GetSalt();
-                var configuration = new ConfigurationBuilder().Build(); 
+                var configuration = new ConfigurationBuilder().Build();
                 var model = BuildUtil.BuildAccountCreationRequest(validationLog, configuration);
                 model.Gender = request.Gender; model.Email = validationLog.Email; model.AccountOfficerCode = _configuration["ApiOptions:Zikora:AccountOfficerCode"]; model.ProductCode = _configuration["ApiOptions:Zikora:ProductCode"];
                 AccountCreationResponse response = await provider.CreateAccount(model);
                 var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
-                    .With(u => u.Address = "")
                     .With(u => u.Email = validationLog.Email)
-                    .With(u => u.CustomerId = "")
+                    .With(u => u.CustomerId = response.CustomerId)
                     .With(u => u.ProviderId = providerId)
-                    .With(u => u.CustomerName = "")
+                    .With(u => u.CustomerName = response.FullName)
                     .With(u => u.PhoneNumber = validationLog.PhoneNumber)
                     .With(u => u.Salt = Convert.ToBase64String(salt))
                     .With(u => u.TransactionPin = request.TransactionPin.EncryptTransactionPin(salt))
@@ -112,8 +113,37 @@ namespace USSDMiddleware.Core.Managers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while trying to check account name.");
+                _log.LogError(ex, "An error occurred while trying to verify account name.");
                 throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Name enquiry failed.");
+            }
+        }
+
+        public async Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(AccountValidationRequest request)
+        {
+            try
+            {
+                var provider = _providerSelector.GetProvider(request.Provider);
+                var providerId = await provider.GetProviderId(_providerManager);
+
+                var accountValidationRequest = new AccountValidationRequest
+                {
+                    AccountNumber = request.AccountNumber,
+
+                };
+
+               GetUserByAccountNumberResponse getUserByAccountNumberResponse = await provider.GetUserByAccountNumber(accountValidationRequest.AccountNumber);
+               if(getUserByAccountNumberResponse == null)
+                {
+                    throw new NotFoundException($"User with {request.AccountNumber} doesn't exist.");
+                }
+
+                return getUserByAccountNumberResponse;
+
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "User not found.");
+                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "User not found.");
             }
         }
 
@@ -162,8 +192,19 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
+
                 var provider = _providerSelector.GetProvider(request.Provider);
                 var providerId = await provider.GetProviderId(_providerManager);
+
+                var freezeAccount = new BlockAccount
+                {
+                    OwnersPhoneNumber = request.OwnersPhoneNumber,
+                    RequestPhoneNumber = request.RequestPhoneNumber,
+                    AccountNo = request.AccountNo,
+                    ProviderId = providerId
+                };
+
+                BlockAccount logBlockAccountRequest = await LogBlockAccount(freezeAccount);
 
                 var phoneValidationRequest = new PhoneValidationRequest
                 {
@@ -184,8 +225,8 @@ namespace USSDMiddleware.Core.Managers
                 }
 
                 var userPin = await _userManager.ValidateTransactionPin(request.Pin, request.OwnersPhoneNumber, providerId);
-                if(!userPin)
-        {
+                if (!userPin)
+                {
                     return new BlockAccountResponse
                     {
                         RequestStatus = false,
@@ -194,32 +235,23 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
-                if (request.OwnersPhoneNumber == request.RequestPhoneNumber)
+
+                var blockAccountRequest = new BlockAccountRequest
                 {
+                    AccountNo = request.AccountNo,
 
-                    var blockAccountRequest = new BlockAccountRequest
-                    {
-                        AccountNo = request.AccountNo,
+                };
 
-                    };
-                    var blockAccount = await provider.BlockAccount(blockAccountRequest);
+                BlockAccountResponse blockAccountResponse = await provider.BlockAccount(blockAccountRequest);
 
-                    if (blockAccount.ResponseStatus == "Failed")
-                    {
-                        throw new NotSuccessfulException("Account blocking was unsuccessful.");
-                    }
+                BlockAccount updateBlockAccount = await UpdateBlockAccount(blockAccountResponse, logBlockAccountRequest, providerId);
 
-                    return blockAccount;
-                }
-                else
+                if (blockAccountResponse.ResponseStatus == "Failed")
                 {
-                    return new BlockAccountResponse
-                    {
-                        RequestStatus = false,
-                        ResponseDescription = "Failed to block account.",
-                        ResponseStatus = "Failed"
-                    };
+                    throw new NotSuccessfulException("Account blocking was unsuccessful.");
                 }
+                
+                return blockAccountResponse;
 
             }
             catch (Exception ex)
@@ -227,6 +259,36 @@ namespace USSDMiddleware.Core.Managers
                 _log.LogError("An error occurred while trying to block account.", ex);
                 throw new NotSuccessfulException(ex.Message);
             }
+        }
+
+        public async Task<BlockAccount> LogBlockAccount(BlockAccount request)
+        {
+            return await _blockAccountRepository.LogBlockAccount(Builder<BlockAccount>.CreateNew()
+              .With(b => b.OwnersPhoneNumber = request.OwnersPhoneNumber)
+              .With(d => d.RequestPhoneNumber = request.RequestPhoneNumber)
+              .With(d => d.ProviderId = request.ProviderId)
+              .With(d => d.AccountNo = request.AccountNo)
+              .With(d => d.CreatedOn = DateTime.Now)
+            .With(d => d.UpdatedOn = DateTime.Now)
+            .Build());
+
+        }
+
+        public async Task<BlockAccount> UpdateBlockAccount(BlockAccountResponse blockAccountResponse, BlockAccount logBlockAccountRequest, string providerId)
+        {
+            if (blockAccountResponse.ResponseStatus == "Successful")
+            {
+                logBlockAccountRequest.ResponseStatus = blockAccountResponse.ResponseStatus;
+                logBlockAccountRequest.ResponseDescription = blockAccountResponse.ResponseDescription;
+                logBlockAccountRequest.RequestStatus = blockAccountResponse.RequestStatus;
+            }
+            else
+            {
+                throw new NotSuccessfulException("Failed to block account.");
+
+            }
+            return await _blockAccountRepository.UpdateBlockAccount(logBlockAccountRequest, providerId);
+
         }
 
         public async Task<BlockAccountResponse> DeactivatePND(BlockAccountRequest request)
@@ -256,7 +318,7 @@ namespace USSDMiddleware.Core.Managers
                 }
 
                 return deactivatePND;
-                
+
             }
             catch (Exception ex)
             {
@@ -270,7 +332,7 @@ namespace USSDMiddleware.Core.Managers
 
             try
             {
-               var provider = _providerSelector.GetProvider(request.Provider);
+                var provider = _providerSelector.GetProvider(request.Provider);
                 var providerId = await provider.GetProviderId(_providerManager);
 
                 if (string.IsNullOrEmpty(request.AccountNo))
@@ -290,9 +352,9 @@ namespace USSDMiddleware.Core.Managers
                     throw new NotSuccessfulException("PND status verification failed.");
                 }
 
-                return verifyPNDStatus;        
+                return verifyPNDStatus;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _log.LogError("An error occurred while trying to verify PND status.", ex);
                 throw new NotSuccessfulException(ex.Message);

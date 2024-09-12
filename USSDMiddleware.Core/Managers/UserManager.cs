@@ -58,7 +58,6 @@ namespace USSDMiddleware.Core.Managers
                 .With(u => u.TransactionPin = request.TransactionPin.EncryptTransactionPin(salt))
                 .With(u => u.ProviderId = providerId)
                 .With(u => u.BankVerificationNumber = serviceRsp.BankVerificationNumber)
-                .With(u => u.Address = "NA")
 
                 .Build());
 
@@ -86,6 +85,7 @@ namespace USSDMiddleware.Core.Managers
             return await provider.ValidatePhone(request);
         }
 
+        //For existing ZIKORA customers.
         public async Task<UserPhoneNumberDetails> GetUserByPhoneNumber(PhoneValidationRequest request)
         {
             ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
@@ -136,7 +136,10 @@ namespace USSDMiddleware.Core.Managers
             var providerId = await provider.GetProviderId(_providerManager);
 
             var userDetail = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
-            if (!userDetail.Value.PhoneNumber.Equals(request.TransactionPin))
+            //TODO: rewrite the validate transaction pin function
+
+            var userPin = await ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
+            if (!userPin)
             {
                 return new AccountBalanceEnquiry
                 {
@@ -146,6 +149,17 @@ namespace USSDMiddleware.Core.Managers
 
                 };
             }
+
+            //if (!userDetail.Value.PhoneNumber.Equals(request.TransactionPin))
+            //{
+            //    return new AccountBalanceEnquiry
+            //    {
+            //        Balance = "",
+            //        Message = "Invalid Transaction Pin",
+            //        Status = false,
+
+            //    };
+            //}
 
             var serviceRsp = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.AccountNumber });
 

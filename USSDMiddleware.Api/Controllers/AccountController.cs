@@ -21,8 +21,8 @@ namespace USSDMiddleware.Api.Controllers
             _accountManager = accountManager;  
         }
 
+        //For existing ZIKORA Customers not registered for USSD
         [HttpPost("create")]
-       // public async Task<IActionResult> CreateNewAccount([FromBody] CreateAccountRequest request)
         public async Task<IActionResult> CreateNewAccount([FromBody] CreateAccountRequestExtension request)
         {
             var result = await _accountManager.CreateAccount(request);
@@ -41,6 +41,19 @@ namespace USSDMiddleware.Api.Controllers
             var result = await _accountManager.NameEnquiry(request);
 
             return Ok(new Response<NameEnquiryResponse>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = true,
+                Data = result
+            });
+        }
+
+        [HttpGet("validate-account")]
+        public async Task<IActionResult> GetUserByAccountNumber([FromQuery] AccountValidationRequest request)
+        {
+            var result = await _accountManager.GetUserByAccountNumber(request);
+
+            return Ok(new Response<GetUserByAccountNumberResponse>()
             {
                 Code = ResponseCodes.Successful,
                 Succeeded = true,

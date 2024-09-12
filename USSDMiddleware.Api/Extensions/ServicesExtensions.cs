@@ -43,6 +43,8 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<IInstantPayOutRepository, InstantPayOutRepository>();
             services.AddScoped<ICustomerDebitRepository, CustomerDebitRepository>();
             services.AddScoped<ICardRepository, CardRepository>();
+            services.AddScoped<IBlockAccountRepository, BlockAccountRepository>();
+            services.AddScoped<@IIntraBankTransferRepository, IntraBankTransferRepository>();
 
             //Third party service
             #region service

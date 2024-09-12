@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using USSDMiddleware.Core.Entities;
+using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.Repositories;
 using USSDMiddleware.Infrastructure.Data;
 
@@ -30,8 +31,8 @@ namespace USSDMiddleware.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "Failed to save customer debit: {SerializeObject}", JsonConvert.SerializeObject(customerDebit));
-                throw;
+                _log.LogError($"Failed to save customer debit: {JsonConvert.SerializeObject(customerDebit)}");
+                throw new NotSuccessfulException($"Failed to save customer debit: {ex.Message}");
             }
         }
 
@@ -43,8 +44,7 @@ namespace USSDMiddleware.Infrastructure.Repositories
 
                 if (debitCustomer != null)
                 {
-                   // debitCustomer.
-                    // instantPayment.requeryresponsecode = model.requeryresponsecode;
+                    debitCustomer.ProcessorRef = model.RetrievalReference;
                     await _dbContext.SaveChangesAsync();
                 }
 
@@ -52,8 +52,9 @@ namespace USSDMiddleware.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "Failed to update customer debit: {SerializeObject}", JsonConvert.SerializeObject(model));
-                throw;
+                _log.LogError($"Failed to update customer debit:  {JsonConvert.SerializeObject(model)}");
+                throw new NotSuccessfulException($"Failed to update customer debit: {ex.Message}");
+                ;
             }
         }
 

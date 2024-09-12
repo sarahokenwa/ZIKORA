@@ -6,5 +6,6 @@ namespace USSDMiddleware.Core.Interfaces.ExternalServices
     {
         Task EnqueueProcess(Expression<Func<Task>> methodCall);
         Task ScheduleProcess(Expression<Func<Task>> methodCall, TimeSpan delay);
+       
     }
 }

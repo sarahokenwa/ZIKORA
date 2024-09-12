@@ -17,14 +17,14 @@ namespace USSDMiddleware.Infrastructure.Repositories
 
         public InstantPayOutRepository(DataEntities dbContext, ILogger<InstantPayOutRepository> log)
         {
-            _dbContext = dbContext; 
+            _dbContext = dbContext;
             _log = log;
         }
         public async Task<FundTransfer> LogInstantPayment(FundTransfer fundTransfer)
         {
             try
             {
-                var instantPayment = await _dbContext.FundTransfers.AddAsync(fundTransfer); 
+                var instantPayment = await _dbContext.FundTransfers.AddAsync(fundTransfer);
 
                 await _dbContext.SaveChangesAsync();
 
@@ -45,8 +45,12 @@ namespace USSDMiddleware.Infrastructure.Repositories
 
                 if (instantPayment != null)
                 {
-                    
-                   // instantPayment.requeryresponsecode = model.requeryresponsecode;
+
+                    // instantPayment.requeryresponsecode = model.requeryresponsecode;
+                    instantPayment.Code = model.Code;
+                    instantPayment.Succeeded = model.Succeeded;
+                    instantPayment.SessionId = model.SessionId;
+                    instantPayment.Message = model.Message;
                     await _dbContext.SaveChangesAsync();
                 }
 
