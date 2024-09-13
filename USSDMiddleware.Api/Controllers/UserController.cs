@@ -22,6 +22,7 @@ namespace USSDMiddleware.Api.Controllers
             _userManager = userManager;
 
         }
+
         
         [HttpPost("create")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)

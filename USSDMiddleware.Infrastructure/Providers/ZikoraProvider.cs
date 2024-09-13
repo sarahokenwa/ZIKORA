@@ -41,6 +41,10 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 string url =  $"{BuildUrl("/BankOneWebAPI/api/Customer/PhoneNumberExist/2")}&phoneNumber={request.PhoneNumber}";
+
+
+                _log.LogInformation($"ValidatePhone Url: {url}");
+
                 var boolRsp = await _httpService.Get<bool>(url, BuildHeader());
                 if (boolRsp.Equals(true))
                 {
@@ -60,6 +64,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByCustomerPhoneNumber/2")}&phoneNumber={phoneNumber}";
+
+                _log.LogInformation($"Get User By Phone number Url: {url}");
+
                 var users = await _httpService.Get<ZikoraGetUserByPhoneNumberResponse[]>(url, BuildHeader());
 
                 if (users == null || users.Length == 0)
@@ -92,6 +99,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByAccountNo2/2")}&accountNumber={accountNumber}";
+
+                _log.LogInformation($"GetUserByAccountNumber Url: {url}");
+
                 var user = await _httpService.Get<GetUserByAccountNumberResponse>(url, BuildHeader());
 
                 if (user == null)
@@ -116,6 +126,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 var url = BuildUrl($"BankOneWebAPI/api/Account/CreateAccountQuick/2");
+
+                _log.LogInformation($"CreateAccount Url: {url}");
+                _log.LogInformation($"CreateAccount Request Body: {req}");
 
                 var rsp = await _httpService.Post<JObject>(url, BuildHeader(), JsonConvert.SerializeObject(req));
                 var isSuccess = rsp["IsSuccessful"]!.Value<bool>();
@@ -150,6 +163,9 @@ namespace USSDMiddleware.Infrastructure.Providers
 
             var jsonContent = JsonConvert.SerializeObject(request);
             var bvnInfoResponse = await _httpService.Post<BvnInfoResponse>(BuildUrl("thirdpartyapiservice/apiservice/Account/BVN/GetBVNDetails"), BuildHeader(), jsonContent);
+
+            
+            _log.LogInformation($"GetBvnInfo Request Body: {jsonContent}");
             if (!bvnInfoResponse.isBvnValid)
             {
                 throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Bvn is invalid");
@@ -180,6 +196,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             var computeWithDrawableBalance = true;
             var url = $"{BuildUrl("/BankOneWebAPI/api/Account/GetAccountByAccountNumber/2")}&accountNumber={model.AccountNumber}" +
                       $"&computeWithDrawableBalance={computeWithDrawableBalance}&provider={Core.Enums.Providers.ZIKORA}";
+
+            _log.LogInformation($"CheckAccountBalance Url: {url}");
+
             try
             {
                 var serviceRsp = await _httpService.Get<ZikoraBalanceEnquiryResponse>(url, BuildHeader());
@@ -202,6 +221,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByCustomerPhoneNumber/2")}&&phoneNumber={phoneNumber}";
+
+                _log.LogInformation($"CreateAccount Url: {url}");
+
                 var serviceRsp = await _httpService.Get<JArray>(url, BuildHeader());
 
                 if (serviceRsp == null || serviceRsp.Count == 0)
@@ -244,16 +266,21 @@ namespace USSDMiddleware.Infrastructure.Providers
                     model.AccountNumber,
                     model.Amount,
                     model.Narration,
-                    GLCode = _configuration["ApiOptions:GLCode"],
-                    NibssCode = _configuration["ApiOptions:NibssCode"],
-                    Fee = _configuration["ApiOptions:FundTransferFee"],
+                    GLCode = _configuration["ApiOptions:Zikora:GLCode"],
+                    NibssCode = _configuration["ApiOptions:Zikora:NibssCode"],
+                    Fee = _configuration["ApiOptions:Zikora:FundTransferFee"],
                     token = authenticationToken,
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(debitPayload);
+
+                _log.LogInformation($"DebitCustomerAccount Url: {debitUrl}");
+                _log.LogInformation($"CreateAccount Request Body: {jsonContent}");
+
                 var debitResponseContent = await _httpService.Post<DebitCustomerAccountResponse>(debitUrl, headers, jsonContent);
 
-                if (debitResponseContent != null)
+                //if (debitResponseContent != null)
+                if (debitResponseContent.IsSuccessful == true && debitResponseContent.ResponseCode == "00")
                 {
 
                     var debitResult = new DebitCustomerAccountResponse
@@ -314,16 +341,18 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(cardRequest);
+
+                _log.LogInformation($"Card request Url: {cardRequestUrl}");
+                _log.LogInformation($"Card Request Body: {cardRequest}");
+
                 var cardResponseContent = await _httpService.Post<CardResponse>(cardRequestUrl, headers, jsonContent);
 
-                if (cardResponseContent != null && cardResponseContent.IsSuccessful)
+                if (cardResponseContent != null && cardResponseContent.IsSuccessful == true)
                 {
                     var cardResult = new CardResponse
                     {
                         IsSuccessful = cardResponseContent.IsSuccessful,
                         ResponseMessage = cardResponseContent.ResponseMessage,
-                        BatchNo = cardResponseContent.BatchNo,
-                        Identifier = cardResponseContent.Identifier,
                     };
 
                     _log.LogInformation($"Card result: {JsonConvert.SerializeObject(cardResult)}");
@@ -333,7 +362,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 }
                 else
                 {
-                    var errorMessage = cardResponseContent?.ResponseMessage ?? "An error occured while requesting for card.";
+                    var errorMessage = cardResponseContent?.ResponseMessage;
                     _log.LogError($"Card request failed: {errorMessage}");
                     throw new NotSuccessfulException(errorMessage);
                     
@@ -341,11 +370,10 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
             catch (Exception ex)
             {
-                _log.LogError($"An error occurred while making a card request: {ex.Message}");
+                _log.LogError($"An error occurred while making card request: {ex.Message}");
                 throw new OperationFailedException($"Failed to make card request: {ex.Message}", ex);
             }
         }
-
 
         public async Task<RequeryResponse> StatusQuery(ReQueryRequest model)
         {
@@ -367,30 +395,35 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var statusQueryJsonContent = JsonConvert.SerializeObject(statusQueryPayload);
 
-                _log.LogInformation($"Status query payload: {statusQueryJsonContent}");
+                _log.LogInformation($"Status Query Url: {statusQueryUrl}");
+                _log.LogInformation($"Card Request Body: {statusQueryJsonContent}");
 
-                var statusQueryResponseContent = await _httpService.Post<RequeryResponse>(statusQueryUrl, headers, statusQueryJsonContent);
+               var statusQueryResponseContent = await _httpService.Post<RequeryResponse>(statusQueryUrl, headers, statusQueryJsonContent);
 
-                if (statusQueryResponseContent != null)
+                if (statusQueryResponseContent.ResponseCode == "00" && statusQueryResponseContent.ResponseMessage == "Successful")
                 {
                     var statusQueryResult = new RequeryResponse
                     {
-                        Code = statusQueryResponseContent.Code,
-                        Succeeded = statusQueryResponseContent.Succeeded,
+                        IsSuccessful = statusQueryResponseContent.IsSuccessful,
+                        ResponseMessage = statusQueryResponseContent.ResponseMessage,
+                        ResponseCode = statusQueryResponseContent.ResponseCode,
+                        Reference = statusQueryResponseContent.Reference,
+                        Status = statusQueryResponseContent.Status,
+                        
                     };
 
                     return statusQueryResult;
                 }
                 else
                 {
-                    _log.LogError("Failed to query transaction status: {statusQueryResult.Succeded} ");
-                    throw new NotSuccessfulException("Failed to query transaction status: {statusQueryResult.Succeded}");
+                    _log.LogError($"Failed to query transaction status: {statusQueryResponseContent.ResponseMessage} ");
+                    throw new NotSuccessfulException($"Failed to query transaction status: {statusQueryResponseContent.ResponseMessage}");
                 }
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while querying transaction status: {statusQueryResult.Code}");
-                throw new NotSuccessfulException("Failed to query transaction status: {statusQueryResult.Succeded}");
+                _log.LogError($"Requery was unsuccessful: {ex.Message}");
+                throw new OperationFailedException($"Requery Failed: {ex.Message}", ex);
             }
         }
 
@@ -411,9 +444,13 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(blockAccount);
+
+                _log.LogInformation($"Block account Url: {blockAccountUrl}");
+                _log.LogInformation($"Block account request Body: {jsonContent}");
+
                 var response = await _httpService.Post<BlockAccountResponse>(blockAccountUrl, headers, jsonContent);
 
-                if (response.ResponseStatus == "Successful")
+                if (response.RequestStatus == true && response.ResponseStatus == "Successful")
                 {
                     var blockAccountResponse = new BlockAccountResponse
                     {
@@ -459,9 +496,13 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(deactivatePostNoDebit);
+
+                _log.LogInformation($"DeactivatePND Url: {deactivatePostNoDebitUrl}");
+                _log.LogInformation($"DeactivatePND Request Body: {jsonContent}");
+
                 var response = await _httpService.Post<BlockAccountResponse>(deactivatePostNoDebitUrl, headers, jsonContent);
 
-                if (response.ResponseStatus == "Successful")
+                if (response.RequestStatus = true && response.ResponseStatus == "Successful")
                 {
                     var deactivatePostNoDebitResponse = new BlockAccountResponse
                     {
@@ -507,9 +548,13 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(verifyAccountPNDStatus);
+
+                _log.LogInformation($"VerifyPNDStatus Url: {verifyAccountPNDStatusUrl}");
+                _log.LogInformation($"VerifyPNDStatus Request Body: {jsonContent}");
+
                 var response = await _httpService.Post<BlockAccountResponse>(verifyAccountPNDStatusUrl, headers, jsonContent);
 
-                if (response.ResponseStatus == "Active")
+                if (response.RequestStatus == true && response.ResponseStatus == "Active")
                 {
                     var verifyAccountPNDStatusResponse = new BlockAccountResponse
                     {
@@ -557,6 +602,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(getCustomerCards);
+
+                _log.LogInformation($"GetCustomerCards Url: {getCustomerCardsUrl}");
+                _log.LogInformation($"GetCustomerCards Request Body: {jsonContent}");
+
                 var response = await _httpService.Post<GetCustomerCardResponse>(getCustomerCardsUrl, headers, jsonContent);
 
                 if (response.IsSuccessful)
@@ -584,7 +633,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 }
                 else
                 {
-                    var errorMessage = response?.ResponseDescription ?? "An error occured while retrieving customer card result.";
+                    var errorMessage = response?.ResponseDescription;
                     _log.LogError($"Get customer card result: {errorMessage}");
                     throw new NotSuccessfulException(errorMessage);
 
@@ -593,7 +642,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             catch (Exception ex)
             {
                 _log.LogError($"Get customer card result: {ex.Message}");
-                throw new OperationFailedException($"Get customer card result: {ex.Message}", ex);
+                throw new OperationFailedException($"{ex.Message}", ex);
             }
         }
 
@@ -603,7 +652,6 @@ namespace USSDMiddleware.Infrastructure.Providers
             {
                 var token = _apiOptions.Zikora.Token;
                 var freezeCardUrl = $"{BuildUrl("/thirdpartyapiservice/apiservice/Cards/Freeze")}";
-
 
                 var headers = BuildHeader();
 
@@ -617,6 +665,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(freezeCard);
+
+                _log.LogInformation($"FreezeCard Url: {freezeCardUrl}");
+                _log.LogInformation($"FreezeCard Request Body: {jsonContent}");
+
                 var response = await _httpService.Post<FreezeCardResponse>(freezeCardUrl, headers, jsonContent);
 
                 if (response.IsSuccessful)
@@ -626,7 +678,6 @@ namespace USSDMiddleware.Infrastructure.Providers
                         IsSuccessful = response.IsSuccessful,
                         ResponseCode = response.ResponseCode,
                         ResponseMessage = response.ResponseMessage,
-                        SerialNo = response.SerialNo,
                         TransactionReference = response.TransactionReference,
                     };
 
@@ -637,8 +688,8 @@ namespace USSDMiddleware.Infrastructure.Providers
                 }
                 else
                 {
-                    var errorMessage = response?.ResponseMessage ?? "An error occured while freezing account.";
-                    _log.LogError($"The attempt to freeze the card was unsuccessful.: {errorMessage}");
+                    var errorMessage = response?.ResponseMessage;
+                    _log.LogError($"The attempt to freeze the card was unsuccessful: {errorMessage}");
                     throw new NotSuccessfulException(errorMessage);
 
                 }
@@ -665,11 +716,14 @@ namespace USSDMiddleware.Infrastructure.Providers
                     request.SerialNo,
                     request.Reason,
                     request.AccountNumber,
-                    request.Reference,
                     token,
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(UnfreezeCard);
+
+                _log.LogInformation($"UnFreezeCard Url: {unFreezeCardUrl}");
+                _log.LogInformation($"UnFreezeCard Request Body: {jsonContent}");
+
                 var response = await _httpService.Post<UnFreezeCardResponse>(unFreezeCardUrl, headers, jsonContent);
 
                 if (response.IsSuccessful)
@@ -701,165 +755,65 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
+        public async Task<IntraBankTransferResponse> IntraBankTransfer(IntraBankTransferRequest model)
+        {
+            try
+            {
+                var authenticationKey = _apiOptions.Zikora.Token;
 
+                var localFundsTransferUrl =
+                    $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/CoreTransactions/LocalFundsTransfer";
 
+                var headers = BuildHeader();
 
+                var transferPayload = new
+                {
+                    model.FromAccountNumber,
+                    model.ToAccountNumber,
+                    model.Fee,
+                    model.RetrievalReference,
+                    model.Narration,
+                    model.Amount,
+                    AuthenticationKey = authenticationKey
+                };
 
+                var jsonContent = JsonConvert.SerializeObject(transferPayload);
 
-        /** public async Task<IntraBankTransferResponse> IntraBankTransfer(IntraBankTransferRequest model)
-         {
-             try
-             {
-                 var authenticationKey = _apiOptions.Zikora.Token;
+                _log.LogInformation($"IntraBankTransfer Url: {localFundsTransferUrl}");
+                _log.LogInformation($"IntraBankTransfer Request Body: {jsonContent}");
 
-                 var transferUrl =
-                     $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/CoreTransactions/LocalFundsTransfer";
-                 var statusQueryUrl =
-                     $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/CoreTransactions/TransactionStatusQuery";
+                var response = await _httpService.Post<IntraBankTransferResponse>(localFundsTransferUrl, headers, jsonContent);
 
-                 var headers = BuildHeader();
+               if(response.IsSuccessful && response.ResponseCode == "00")
+                {
+                    var intraBankTransferResponse = new IntraBankTransferResponse
+                    {
+                        IsSuccessful = response.IsSuccessful,
+                        ResponseCode = response.ResponseCode,
+                        ResponseMessage = response.ResponseMessage,
+                        Reference = response.Reference,
+                    };
 
-                 var transferPayload = new
-                 {
-                     model.FromAccountNumber,
-                     model.ToAccountNumber,
-                     model.Fee,
-                     model.RetrievalReference,
-                     model.Narration,
-                     model.Amount,
-                     AuthenticationKey = authenticationKey
-                 };
+                    _log.LogInformation($"Intrabank transfer result: {JsonConvert.SerializeObject(intraBankTransferResponse)}");
 
-                 var jsonContent = JsonConvert.SerializeObject(transferPayload);
+                    return intraBankTransferResponse;
 
-                 var transferResponseContent = await _httpService.Post(transferUrl, headers, jsonContent);
+                }
+                else
+                {
+                    var errorMessage = response?.ResponseMessage;
+                    _log.LogError($"Fund transfer failed: {errorMessage}");
+                    throw new NotSuccessfulException(errorMessage);
 
-                 if (!string.IsNullOrEmpty(transferResponseContent))
-                 {
-                     var transferResponseJson = JsonConvert.DeserializeObject<JObject>(transferResponseContent);
-                     _log.LogInformation($"Transfer response content: {transferResponseJson}");
+                }
 
-                     var transferResult = new IntraBankTransferResponse
-                     {
-                         IsSuccessful = transferResponseJson["IsSuccessful"].Value<bool>(),
-                         ResponseMessage = transferResponseJson["ResponseMessage"]?.ToString(),
-                         ResponseCode = transferResponseJson["ResponseCode"]?.ToString(),
-                         Reference = transferResponseJson["Reference"]?.ToString()
-                     };
-
-                     if (!transferResult.IsSuccessful)
-                     {
-                         _log.LogError("Transfer was not successful.");
-                         throw new NotSuccessfulException("Failed to perform intra-bank transfer.");
-                     }
-
-                     var statusQueryPayload = new
-                     {
-                         RetrievalReference = model.RetrievalReference,
-                         TransactionDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                         TransactionType = "CREDIT",
-                         model.Amount,
-                         token = authenticationKey,
-                     };
-
-                     var statusQueryJsonContent = JsonConvert.SerializeObject(statusQueryPayload);
-
-                     var statusQueryResponseContent =
-                         await _httpService.Post(statusQueryUrl, headers, statusQueryJsonContent);
-
-                     if (!string.IsNullOrEmpty(statusQueryResponseContent))
-                     {
-                         var statusQueryResponseJson =
-                             JsonConvert.DeserializeObject<JObject>(statusQueryResponseContent);
-                         _log.LogInformation($"Status query response content: {statusQueryResponseJson}");
-
-                         var statusQueryResult = new IntraBankTransferResponse
-                         {
-                             IsSuccessful = statusQueryResponseJson["IsSuccessful"].Value<bool>(),
-                             ResponseMessage = statusQueryResponseJson["ResponseMessage"]?.ToString(),
-                             ResponseCode = statusQueryResponseJson["ResponseCode"]?.ToString(),
-                             Reference = transferResponseJson["Reference"]?.ToString()
-                         };
-
-                         return statusQueryResult;
-                     }
-                     else
-                     {
-                         _log.LogError("Failed to query transaction status.");
-                         throw new NotSuccessfulException("Failed to query transaction status.");
-                     }
-                 }
-                 else
-                 {
-                     _log.LogError("Failed to perform intra-bank transfer.");
-                     throw new NotSuccessfulException("Failed to perform intra-bank transfer.");
-                 }
-             }
-             catch (Exception ex)
-             {
-                 _log.LogError(ex, "An error occurred while performing intra-bank transfer.");
-                 throw new NotSuccessfulException("Failed to perform intra-bank transfer.");
-             }
-         }
-
-          public async Task<FreezeAccountResponse> FreezeAccount(FreezeAccountRequest model)
-          {
-              try
-              {
-                  var authenticationCode = _apiOptions.Zikora.Token;
-
-                  var url = $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/Account/ActivatePND";
-
-                  var headers = BuildHeader();
-
-                  var freezeAccountPayload = new
-                  {
-                      model.AccountNo,
-                      AuthenticationCode = authenticationCode,
-                  };
-
-                  var jsonContent = JsonConvert.SerializeObject(freezeAccountPayload);
-
-                  var responseContent = await _httpService.Post(url, headers, jsonContent);
-
-                  if (!string.IsNullOrEmpty(responseContent))
-                  {
-                      var responseJson = JsonConvert.DeserializeObject<JObject>(responseContent);
-                      _log.LogInformation($"Response content: {responseContent}");
-
-                      var blockAccount = new FreezeAccountResponse
-                      {
-                          RequestStatus = responseJson["RequestStatus"].Value<bool>(),
-                          ResponseDescription = responseJson["ResponseDescription"]?.ToString(),
-                          ResponseStatus = responseJson["ResponseStatus"]?.ToString(),
-                      };
-
-                      if (!blockAccount.RequestStatus)
-                      {
-                          _log.LogError("The attempt to freeze the account was not successful.");
-                          throw new NotSuccessfulException("Failed to freeze account.");
-                      }
-
-                      return blockAccount;
-                  }
-
-                  else
-                  {
-                      _log.LogError("The attempt to freeze the account was not successful.");
-                      throw new NotSuccessfulException("Failed to freeze account.");
-                  }
-              }
-              catch (Exception ex)
-              {
-                  _log.LogError(ex, "An error occurred while freezing account");
-                  throw new NotSuccessfulException("Failed to freeze account.");
-              }
-          }**/
-
-
-
-
-
+            }
+            catch (Exception ex)
+            {
+                _log.LogError("An error occurred while performing intra-bank transfer.", ex);
+                throw new NotSuccessfulException($"Failed to perform intra-bank transfer: {ex.Message}");
+            }
+        }
 
         private IDictionary<string, string>? BuildHeader()
         {
