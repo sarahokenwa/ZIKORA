@@ -136,7 +136,6 @@ namespace USSDMiddleware.Core.Managers
             var providerId = await provider.GetProviderId(_providerManager);
 
             var userDetail = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
-            //TODO: rewrite the validate transaction pin function
 
             var userPin = await ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
             if (!userPin)
@@ -144,22 +143,11 @@ namespace USSDMiddleware.Core.Managers
                 return new AccountBalanceEnquiry
                 {
                     Balance = "",
-                    Message = "Invalid Transaction Pin",
+                    Message = "Invalid phone number or pin",
                     Status = false,
 
-                };
+                };  
             }
-
-            //if (!userDetail.Value.PhoneNumber.Equals(request.TransactionPin))
-            //{
-            //    return new AccountBalanceEnquiry
-            //    {
-            //        Balance = "",
-            //        Message = "Invalid Transaction Pin",
-            //        Status = false,
-
-            //    };
-            //}
 
             var serviceRsp = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.AccountNumber });
 

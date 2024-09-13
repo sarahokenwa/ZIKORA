@@ -8,6 +8,7 @@ using USSDMiddleware.Core.Interfaces.ExternalServices;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Repositories;
 using USSDMiddleware.Core.Models;
+using USSDMiddleware.Core.Models.Bills;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Services;
@@ -351,7 +352,8 @@ namespace USSDMiddleware.Core.Managers
                 var transactionPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
                 if (transactionPin == null)
                 {
-                    throw new NotSuccessfulException("Invalid phone number or pin");
+                    return new IntraBankTransferResponse { ResponseMessage = "Invalid phone number or pin.", IsSuccessful = false };
+
                 }
 
                 var intraBankTransfer = new IntraBankTransfer

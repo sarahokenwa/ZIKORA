@@ -230,7 +230,7 @@ namespace USSDMiddleware.Core.Managers
                     return new BlockAccountResponse
                     {
                         RequestStatus = false,
-                        ResponseDescription = "Invalid PIN.",
+                        ResponseDescription = "Invalid phone number or pin.",
                         ResponseStatus = "Failed"
                     };
                 }
