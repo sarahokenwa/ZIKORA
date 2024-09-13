@@ -188,14 +188,14 @@ namespace USSDMiddleware.Core.Managers
             var user = await _userRepository.GetByPhoneNumber(phoneNumber, providerId);
             if (user == null)
             {
-                throw new NotFoundException("Invalid phone number or pin.");
+                return false;
             }
             byte[] salt = Convert.FromBase64String(user.Value.Salt);
             string pin = transactionPin.HashSecret(salt);
 
             if (!user.Value.TransactionPin.Equals(pin))
             {
-                throw new NotSuccessfulException("Invalid phone number or pin.");
+                return false;
             }
             else
             {
