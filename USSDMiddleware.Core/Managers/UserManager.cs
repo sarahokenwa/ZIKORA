@@ -58,7 +58,6 @@ namespace USSDMiddleware.Core.Managers
                 .With(u => u.TransactionPin = request.TransactionPin.EncryptTransactionPin(salt))
                 .With(u => u.ProviderId = providerId)
                 .With(u => u.BankVerificationNumber = serviceRsp.BankVerificationNumber)
-                .With(u => u.Address = "NA")
 
                 .Build());
 
@@ -86,6 +85,7 @@ namespace USSDMiddleware.Core.Managers
             return await provider.ValidatePhone(request);
         }
 
+        //For existing ZIKORA customers.
         public async Task<UserPhoneNumberDetails> GetUserByPhoneNumber(PhoneValidationRequest request)
         {
             ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
@@ -136,15 +136,17 @@ namespace USSDMiddleware.Core.Managers
             var providerId = await provider.GetProviderId(_providerManager);
 
             var userDetail = await _userRepository.GetByPhoneNumber(request.PhoneNumber, providerId);
-            if (!userDetail.Value.PhoneNumber.Equals(request.TransactionPin))
+
+            var userPin = await ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
+            if (!userPin)
             {
                 return new AccountBalanceEnquiry
                 {
                     Balance = "",
-                    Message = "Invalid Transaction Pin",
+                    Message = "Invalid phone number or pin",
                     Status = false,
 
-                };
+                };  
             }
 
             var serviceRsp = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.AccountNumber });
@@ -174,15 +176,14 @@ namespace USSDMiddleware.Core.Managers
             var user = await _userRepository.GetByPhoneNumber(phoneNumber, providerId);
             if (user == null)
             {
-                throw new NotFoundException("Invalid phone number or pin.");
+                return false;
             }
             byte[] salt = Convert.FromBase64String(user.Value.Salt);
             string pin = transactionPin.HashSecret(salt);
 
             if (!user.Value.TransactionPin.Equals(pin))
-               // if (!user.Value.TransactionPin.Equals(transactionPin))
             {
-                throw new NotSuccessfulException("Invalid phone number or pin.");
+                return false;
             }
             else
             {

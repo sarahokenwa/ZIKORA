@@ -21,6 +21,7 @@ public class BvnManager : IBvnManager
         _validationLogManager = validationLogManager;
     }
 
+    //For existing ZIKORA Customers not registered for USSD
     public async Task<GetBvnInfoResponse> GetBvnInfo(BvnInfoRequest req)
     {
         ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()

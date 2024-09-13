@@ -43,6 +43,8 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<IInstantPayOutRepository, InstantPayOutRepository>();
             services.AddScoped<ICustomerDebitRepository, CustomerDebitRepository>();
             services.AddScoped<ICardRepository, CardRepository>();
+            services.AddScoped<IBlockAccountRepository, BlockAccountRepository>();
+            services.AddScoped<@IIntraBankTransferRepository, IntraBankTransferRepository>();
 
             //Third party service
             #region service
@@ -51,6 +53,7 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<ICyberPayProvider, CyberPayProvider>();
             services.AddScoped<UssdProviderSelector>();
             services.AddScoped<IPayOutService, PayOutService>();
+            services.AddScoped<IBackgroundService, HangfireBackgroundService>();
 
 
 
@@ -59,6 +62,8 @@ namespace USSDMiddleware.Api.Extensions
             #endregion service
 
             //Configurations
+
+           // services.Configure<ApiOptions>(configuration.GetSection("ApiOptions"));
 
             services.AddSingleton(configuration.GetSection("ApiOptions").Get<ApiOptions>());
 

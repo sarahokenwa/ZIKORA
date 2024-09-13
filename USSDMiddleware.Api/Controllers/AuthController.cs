@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.Reflection.Metadata;
 using System.Security.Claims;
 using USSDMiddleware.Core.Models.Security;
 using USSDMiddleware.Core.Models;
