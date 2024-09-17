@@ -152,13 +152,13 @@ namespace USSDMiddleware.Core.Managers
                         await _backgroundService.EnqueueProcess(() => InstantPayOutBill(debitResponse, logdebitRequest, request, merchantReference));
                         response.Succeeded = true;
                         response.Message = "Request is being processed.";
-                        
+
                     }
                     else
                     {
                         response.Succeeded = false;
                         response.Message = debitResponse.ResponseMessage;
-                        
+
                     }
                 }
 
@@ -268,7 +268,7 @@ namespace USSDMiddleware.Core.Managers
                      .With(u => u.BeneficiaryName = request.BeneficiaryName)
                      .With(u => u.SenderName = request.SenderName)
                      .With(u => u.BankCode = request.BankCode)
-                    // .With(u => u.BankCode = _configuration["ApiOptions:Zikora:BankCode"])
+                     // .With(u => u.BankCode = _configuration["ApiOptions:Zikora:BankCode"])
                      .With(u => u.ProviderId = providerId)
                      .With(u => u.Amount = request.Amount)
                      .With(u => u.PhoneNumber = request.PhoneNumber)
@@ -364,7 +364,7 @@ namespace USSDMiddleware.Core.Managers
                     ProviderId = providerId,
                     RetrievalReference = settings.RetrievalReference,
                     Narration = request.Narration,
-                    Amount = request.Amount 
+                    Amount = request.Amount
                 };
 
                 var intraBankTransferRequest = new IntraBankTransferRequest
@@ -409,18 +409,13 @@ namespace USSDMiddleware.Core.Managers
 
         public async Task<IntraBankTransfer> UpdateIntraBankTransfer(IntraBankTransferResponse intraBankTransferResponse, IntraBankTransfer logIntraBankTransferRequest, string providerId)
         {
-            if (intraBankTransferResponse.IsSuccessful)
-            {
-                logIntraBankTransferRequest.ProcessorRef = intraBankTransferResponse.Reference;
-                logIntraBankTransferRequest.ResponseCode = intraBankTransferResponse.ResponseCode;
-                logIntraBankTransferRequest.ResponseMessage = intraBankTransferResponse.ResponseMessage;
-                logIntraBankTransferRequest.IsSuccessful = intraBankTransferResponse.IsSuccessful;
-            }
-            else
-            {
-                throw new NotSuccessfulException("Failed to update intra bank transfer record.");
 
-            }
+            logIntraBankTransferRequest.ProcessorRef = intraBankTransferResponse.Reference;
+            logIntraBankTransferRequest.ResponseCode = intraBankTransferResponse.ResponseCode;
+            logIntraBankTransferRequest.ResponseMessage = intraBankTransferResponse.ResponseMessage;
+            logIntraBankTransferRequest.IsSuccessful = intraBankTransferResponse.IsSuccessful;
+
+
             return await _intraBankTransferRepository.UpdateIntraBankTransfer(logIntraBankTransferRequest, providerId);
 
         }
