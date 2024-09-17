@@ -280,36 +280,30 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var debitResponseContent = await _httpService.Post<DebitCustomerAccountResponse>(debitUrl, headers, jsonContent);
 
                 //if (debitResponseContent != null)
-                if (debitResponseContent.IsSuccessful == true && debitResponseContent.ResponseCode == "00")
+
+
+                var debitResult = new DebitCustomerAccountResponse
                 {
+                    IsSuccessful = debitResponseContent.IsSuccessful,
+                    ResponseMessage = debitResponseContent.ResponseMessage,
+                    ResponseCode = debitResponseContent.ResponseCode,
+                    Reference = debitResponseContent.Reference
 
-                    var debitResult = new DebitCustomerAccountResponse
-                    {
-                        IsSuccessful = debitResponseContent.IsSuccessful,
-                        ResponseMessage = debitResponseContent.ResponseMessage,
-                        ResponseCode = debitResponseContent.ResponseCode,
-                        Reference = debitResponseContent.Reference
+                };
 
-                    };
+                _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
 
-                    _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
-
-                    if (!debitResult.IsSuccessful)
-                    {
-                        _log.LogError($"Debit was not successful: {debitResult.ResponseMessage}");
-                        throw new NotSuccessfulException($"Failed to debit customer account: {debitResult.ResponseMessage}");
-                    }
-
-                    _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
-
-                    return debitResult;
-
-                }
-                else
+                if (!debitResult.IsSuccessful)
                 {
-                    _log.LogError("Failed to debit customer account: {debitResult.ResponseMessage}");
-                    throw new NotSuccessfulException("Failed to debit customer account: {debitResult.ResponseMessage}");
+                    _log.LogError($"Debit was not successful: {debitResult.ResponseMessage}");
+                    throw new NotSuccessfulException($"Failed to debit customer account: {debitResult.ResponseMessage}");
                 }
+
+                _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
+
+                return debitResult;
+
+
             }
             catch (Exception ex)
             {
@@ -450,27 +444,19 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var response = await _httpService.Post<BlockAccountResponse>(blockAccountUrl, headers, jsonContent);
 
-                if (response.RequestStatus == true && response.ResponseStatus == "Successful")
+
+                var blockAccountResponse = new BlockAccountResponse
                 {
-                    var blockAccountResponse = new BlockAccountResponse
-                    {
-                        RequestStatus = response.RequestStatus,
-                        ResponseDescription = response.ResponseDescription,
-                        ResponseStatus = response.ResponseStatus,
-                    };
+                    RequestStatus = response.RequestStatus,
+                    ResponseDescription = response.ResponseDescription,
+                    ResponseStatus = response.ResponseStatus,
+                };
 
-                    _log.LogInformation($"Block account result: {JsonConvert.SerializeObject(blockAccountResponse)}");
+                _log.LogInformation($"Block account result: {JsonConvert.SerializeObject(blockAccountResponse)}");
 
-                    return blockAccountResponse;
+                return blockAccountResponse;
 
-                }
-                else
-                {
-                    var errorMessage = response?.ResponseDescription ?? "An error occured while blocking account.";
-                    _log.LogError($"Account blocking was unsuccessful: {errorMessage}");
-                    throw new NotSuccessfulException(errorMessage);
 
-                }
             }
             catch (Exception ex)
             {
@@ -587,6 +573,8 @@ namespace USSDMiddleware.Infrastructure.Providers
         {
             try
             {
+
+                var getCustomerCardsResponse = new GetCustomerCardResponse();
                 var authenticationToken = _apiOptions.Zikora.Token;
                 var includeInactiveCards = true;
                 var getCustomerCardsUrl = $"{BuildUrl("/thirdpartyapiservice/apiservice/Cards/RetrieveCustomerCards")}";
@@ -608,37 +596,34 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var response = await _httpService.Post<GetCustomerCardResponse>(getCustomerCardsUrl, headers, jsonContent);
 
-                if (response.IsSuccessful)
+                if (response.IsSuccessful && response.Cards != null)
                 {
-                    var getCustomerCardsResponse = new GetCustomerCardResponse
+                    getCustomerCardsResponse.IsSuccessful = response.IsSuccessful;
+                    getCustomerCardsResponse.ResponseDescription = response.ResponseDescription;
+                    getCustomerCardsResponse.Cards = response.Cards.Select(card => new Card
                     {
-                        IsSuccessful = response.IsSuccessful,
-                        ResponseDescription = response.ResponseDescription,
-                        Cards = response.Cards.Select(card => new Card
-                        {
-                            AccountNumber = card.AccountNumber,
-                            CardPAN = card.CardPAN,
-                            LinkedDate = card.LinkedDate,
-                            ExpiryDate = card.ExpiryDate,
-                            SerialNo = card.SerialNo,
-                            NameOnCard = card.NameOnCard,
-                            Status = card.Status
-                        }).ToArray()
-                    };
-
-                    _log.LogInformation($"Get customer card result: {JsonConvert.SerializeObject(response)}");
-
-                    return response;
-
+                        AccountNumber = card.AccountNumber,
+                        CardPAN = card.CardPAN,
+                        LinkedDate = card.LinkedDate,
+                        ExpiryDate = card.ExpiryDate,
+                        SerialNo = card.SerialNo,
+                        NameOnCard = card.NameOnCard,
+                        Status = card.Status
+                    }).ToArray();
                 }
                 else
                 {
-                    var errorMessage = response?.ResponseDescription;
-                    _log.LogError($"Get customer card result: {errorMessage}");
-                    throw new NotSuccessfulException(errorMessage);
-
+                    getCustomerCardsResponse.IsSuccessful = response.IsSuccessful;
+                    getCustomerCardsResponse.ResponseDescription = response.ResponseDescription;
+                    getCustomerCardsResponse.Cards = null;
                 }
+
+                _log.LogInformation($"Get customer card result: {JsonConvert.SerializeObject(response)}");
+
+                return response;
+
             }
+
             catch (Exception ex)
             {
                 _log.LogError($"Get customer card result: {ex.Message}");
@@ -726,27 +711,17 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var response = await _httpService.Post<UnFreezeCardResponse>(unFreezeCardUrl, headers, jsonContent);
 
-                if (response.IsSuccessful)
+                var unFreezeCardResponse = new UnFreezeCardResponse
                 {
-                    var unFreezeCardResponse = new UnFreezeCardResponse
-                    {
-                        IsSuccessful = response.IsSuccessful,
-                        ResponseMessage = response.ResponseMessage,
-                        Reference = response.Reference,
-                    };
+                    IsSuccessful = response.IsSuccessful,
+                    ResponseMessage = response.ResponseMessage,
+                    Reference = response.Reference,
+                };
 
-                    _log.LogInformation($"UnFreeze card result: {JsonConvert.SerializeObject(unFreezeCardResponse)}");
+                _log.LogInformation($"UnFreeze card result: {JsonConvert.SerializeObject(unFreezeCardResponse)}");
 
-                    return unFreezeCardResponse;
+                return unFreezeCardResponse;
 
-                }
-                else
-                {
-                    var errorMessage = response?.ResponseMessage ?? "An error occured while unfreezing card.";
-                    _log.LogError($"The attempt to unfreeze the card was unsuccessful.: {errorMessage}");
-                    throw new NotSuccessfulException(errorMessage);
-
-                }
             }
             catch (Exception ex)
             {

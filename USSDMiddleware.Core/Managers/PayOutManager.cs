@@ -150,9 +150,12 @@ namespace USSDMiddleware.Core.Managers
                     DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
                     CustomerDebit updateCustomerDebit = await UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
 
-                    if (debitResponse != null && debitResponse.IsSuccessful)
+                    if (debitResponse.IsSuccessful && debitResponse.ResponseCode == "00")
                     {
-                        await _backgroundService.EnqueueProcess(() => InstantPayOutBill(debitResponse, logdebitRequest, request, merchantReference));
+                        await
+                        //_backgroundService.EnqueueProcess(() =>
+                        InstantPayOutBill(debitResponse, logdebitRequest, request, merchantReference);
+                        //);
                         response.Succeeded = true;
                         response.Message = "Request is being processed.";
 
@@ -249,16 +252,10 @@ namespace USSDMiddleware.Core.Managers
 
         public async Task<CustomerDebit> UpdateCustomerDebit(DebitCustomerAccountResponse debitResponse, CustomerDebit logdebitRequest, string providerId)
         {
-            if (debitResponse.IsSuccessful)
-            {
-                logdebitRequest.ProcessorRef = debitResponse.Reference;
 
-            }
-            else
-            {
-                throw new NotSuccessfulException("Failed to update customer's debit record.");
+            logdebitRequest.ProcessorRef = debitResponse.Reference;
 
-            }
+
             return await _customerDebitRepository.UpdateCustomerDebit(logdebitRequest, providerId);
 
         }

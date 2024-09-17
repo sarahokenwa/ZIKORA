@@ -2,7 +2,7 @@
 {
     public class UnFreezeCardRequest
     {
-        public string SerialNo { get; set; }
+        public string? SerialNo { get; set; }
         public string Reason { get; set; }
         public string AccountNumber { get; set; }
        // public string Reference { get; set; }
