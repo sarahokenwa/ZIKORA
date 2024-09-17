@@ -140,7 +140,7 @@ namespace USSDMiddleware.Core.Managers
                 bool isPinValid = await _userManager.ValidateTransactionPin(requestModel.TransactionPin, requestModel.CustomerMobile, providerId);
                 if (!isPinValid)
                 {
-                    throw new NotSuccessfulException("Invalid phone number or pin.");
+                    return new VendResponse { Message = "Invalid phone number or pin.", Succeeded = false };
                 }
 
                 var userDetail = await _userRepository.GetByPhoneNumber(requestModel.CustomerMobile, providerId);

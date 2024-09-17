@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Repositories;
+using USSDMiddleware.Core.Models.Bills;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Services;
@@ -74,7 +75,11 @@ namespace USSDMiddleware.Core.Managers
                 }
                 
                 var userPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
+                if(userPin == null)
+                {
+                    return new CardResponse { ResponseMessage = "Invalid phone number or pin.", IsSuccessful = false };
 
+                }
                 var user = await provider.GetUserByAccountNumber(request.AccountNumber);
                 if (user == null)
                 {
@@ -215,7 +220,8 @@ namespace USSDMiddleware.Core.Managers
                 bool isPinValid = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
                 if (!isPinValid)
                 {
-                    throw new NotSuccessfulException("Invalid phone number or pin.");
+                    return new FreezeCardResponse { ResponseMessage = "Invalid phone number or pin.", IsSuccessful = false };
+
                 }
 
                 string reference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
@@ -311,7 +317,8 @@ namespace USSDMiddleware.Core.Managers
                 bool isPinValid = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
                 if (!isPinValid)
                 {
-                    throw new NotSuccessfulException("Invalid phone number or pin.");
+                    return new UnFreezeCardResponse { ResponseMessage = "Invalid phone number or pin.", IsSuccessful = false };
+
                 }
 
                 var reference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
