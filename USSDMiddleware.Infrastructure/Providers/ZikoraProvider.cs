@@ -40,7 +40,7 @@ namespace USSDMiddleware.Infrastructure.Providers
         {
             try
             {
-                string url =  $"{BuildUrl("/BankOneWebAPI/api/Customer/PhoneNumberExist/2")}&phoneNumber={request.PhoneNumber}";
+                string url = $"{BuildUrl("/BankOneWebAPI/api/Customer/PhoneNumberExist/2")}&phoneNumber={request.PhoneNumber}";
 
 
                 _log.LogInformation($"ValidatePhone Url: {url}");
@@ -58,7 +58,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
             return new PhoneValidationResponse(false, false, "Phone number does not exist!");
         }
-        
+
         public async Task<GetUserByPhoneNumberResponse> GetUserByPhoneNumber(string phoneNumber)
         {
             try
@@ -109,7 +109,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     _log.LogError("No customer found in the response");
                     throw new NotFoundException("Failed to retrieve user.");
                 }
-                
+
                 return Builder<GetUserByAccountNumberResponse>.CreateNew()
                     .With(g => g.Name = user.Name)
                     .Build();
@@ -164,7 +164,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             var jsonContent = JsonConvert.SerializeObject(request);
             var bvnInfoResponse = await _httpService.Post<BvnInfoResponse>(BuildUrl("thirdpartyapiservice/apiservice/Account/BVN/GetBVNDetails"), BuildHeader(), jsonContent);
 
-            
+
             _log.LogInformation($"GetBvnInfo Request Body: {jsonContent}");
             if (!bvnInfoResponse.isBvnValid)
             {
@@ -215,7 +215,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 throw new NotSuccessfulException("Failed to retrieve account balance");
             }
         }
-        
+
         public async Task<List<GetAccountResponse>> GetAccountsByPhoneNumber(string phoneNumber)
         {
             try
@@ -241,7 +241,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                         AccessLevel = account["AccessLevel"]?.ToString()
                     })
                     .ToList();
-                
+
                 return accounts;
             }
             catch (Exception ex)
@@ -257,7 +257,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             {
                 var authenticationToken = _apiOptions.Zikora.Token;
                 var debitUrl = $"{_apiOptions.Zikora.BaseUrl}/thirdpartyapiservice/apiservice/CoreTransactions/Debit";
-               
+
                 var headers = BuildHeader();
 
                 var debitPayload = new
@@ -285,11 +285,11 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                     var debitResult = new DebitCustomerAccountResponse
                     {
-                            IsSuccessful = debitResponseContent.IsSuccessful,
-                            ResponseMessage = debitResponseContent.ResponseMessage,
-                            ResponseCode = debitResponseContent.ResponseCode,
-                            Reference = debitResponseContent.Reference
-                       
+                        IsSuccessful = debitResponseContent.IsSuccessful,
+                        ResponseMessage = debitResponseContent.ResponseMessage,
+                        ResponseCode = debitResponseContent.ResponseCode,
+                        Reference = debitResponseContent.Reference
+
                     };
 
                     _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
@@ -356,7 +356,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     };
 
                     _log.LogInformation($"Card result: {JsonConvert.SerializeObject(cardResult)}");
-                   
+
                     return cardResult;
 
                 }
@@ -365,7 +365,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     var errorMessage = cardResponseContent?.ResponseMessage;
                     _log.LogError($"Card request failed: {errorMessage}");
                     throw new NotSuccessfulException(errorMessage);
-                    
+
                 }
             }
             catch (Exception ex)
@@ -398,7 +398,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation($"Status Query Url: {statusQueryUrl}");
                 _log.LogInformation($"Card Request Body: {statusQueryJsonContent}");
 
-               var statusQueryResponseContent = await _httpService.Post<RequeryResponse>(statusQueryUrl, headers, statusQueryJsonContent);
+                var statusQueryResponseContent = await _httpService.Post<RequeryResponse>(statusQueryUrl, headers, statusQueryJsonContent);
 
                 if (statusQueryResponseContent.ResponseCode == "00" && statusQueryResponseContent.ResponseMessage == "Successful")
                 {
@@ -409,7 +409,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                         ResponseCode = statusQueryResponseContent.ResponseCode,
                         Reference = statusQueryResponseContent.Reference,
                         Status = statusQueryResponseContent.Status,
-                        
+
                     };
 
                     return statusQueryResult;
@@ -784,28 +784,19 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var response = await _httpService.Post<IntraBankTransferResponse>(localFundsTransferUrl, headers, jsonContent);
 
-               if(response.IsSuccessful && response.ResponseCode == "00")
+
+                var intraBankTransferResponse = new IntraBankTransferResponse
                 {
-                    var intraBankTransferResponse = new IntraBankTransferResponse
-                    {
-                        IsSuccessful = response.IsSuccessful,
-                        ResponseCode = response.ResponseCode,
-                        ResponseMessage = response.ResponseMessage,
-                        Reference = response.Reference,
-                    };
+                    IsSuccessful = response.IsSuccessful,
+                    ResponseCode = response.ResponseCode,
+                    ResponseMessage = response.ResponseMessage,
+                    Reference = response.Reference,
+                };
 
-                    _log.LogInformation($"Intrabank transfer result: {JsonConvert.SerializeObject(intraBankTransferResponse)}");
+                _log.LogInformation($"Intrabank transfer result: {JsonConvert.SerializeObject(intraBankTransferResponse)}");
 
-                    return intraBankTransferResponse;
+                return intraBankTransferResponse;
 
-                }
-                else
-                {
-                    var errorMessage = response?.ResponseMessage;
-                    _log.LogError($"Fund transfer failed: {errorMessage}");
-                    throw new NotSuccessfulException(errorMessage);
-
-                }
 
             }
             catch (Exception ex)
@@ -852,5 +843,5 @@ namespace USSDMiddleware.Infrastructure.Providers
 
 
 
-    
+
 
