@@ -104,6 +104,9 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
+                //Converting amount to kobo
+                request.Amount = request.Amount * 100;
+
                 var response = new InstantPayOutResponse();
 
                 var settings = new ZIKORAModelExtension();
@@ -324,6 +327,8 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
+                //Converting amount to kobo
+                request.Amount = request.Amount * 100;
                 var settings = new ZIKORAModelExtension();
                 settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
 
