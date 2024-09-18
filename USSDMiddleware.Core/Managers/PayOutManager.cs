@@ -122,7 +122,16 @@ namespace USSDMiddleware.Core.Managers
                 var providerId = await provider.GetProviderId(_providerManager);
 
                 var transactionPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
-                if (transactionPin)
+                if (transactionPin == false)
+                {
+                    return new InstantPayOutResponse
+                    {
+                        Message = "Invalid phone number or pin.",
+                        Succeeded = false 
+                    };
+
+                }
+                else 
                 {
 
                     CustomerDebit customerDebit = new CustomerDebit
@@ -352,9 +361,12 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
                 var transactionPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
-                if (transactionPin == null)
+                if (!transactionPin)
                 {
-                    return new IntraBankTransferResponse { ResponseMessage = "Invalid phone number or pin.", IsSuccessful = false };
+                    return new IntraBankTransferResponse { 
+                        ResponseMessage = "Invalid phone number or pin.", 
+                        IsSuccessful = false
+                    };
 
                 }
 
