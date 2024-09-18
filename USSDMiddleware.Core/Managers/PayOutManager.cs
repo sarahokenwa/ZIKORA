@@ -162,9 +162,9 @@ namespace USSDMiddleware.Core.Managers
                     if (debitResponse.IsSuccessful && debitResponse.ResponseCode == "00")
                     {
                         await
-                        //_backgroundService.EnqueueProcess(() =>
-                        InstantPayOutBill(debitResponse, logdebitRequest, request, merchantReference);
-                        //);
+                        _backgroundService.EnqueueProcess(() =>
+                        InstantPayOutBill(debitResponse, logdebitRequest, request, merchantReference)
+                        );
                         response.Succeeded = true;
                         response.Message = "Request is being processed.";
 

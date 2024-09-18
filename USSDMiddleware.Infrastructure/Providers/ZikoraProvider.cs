@@ -279,9 +279,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var debitResponseContent = await _httpService.Post<DebitCustomerAccountResponse>(debitUrl, headers, jsonContent);
 
-                //if (debitResponseContent != null)
-
-
+              
                 var debitResult = new DebitCustomerAccountResponse
                 {
                     IsSuccessful = debitResponseContent.IsSuccessful,
