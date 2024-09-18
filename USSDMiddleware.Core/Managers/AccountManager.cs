@@ -131,8 +131,8 @@ namespace USSDMiddleware.Core.Managers
 
                 };
 
-               GetUserByAccountNumberResponse getUserByAccountNumberResponse = await provider.GetUserByAccountNumber(accountValidationRequest.AccountNumber);
-               if(getUserByAccountNumberResponse == null)
+                GetUserByAccountNumberResponse getUserByAccountNumberResponse = await provider.GetUserByAccountNumber(accountValidationRequest.AccountNumber);
+                if (getUserByAccountNumberResponse == null)
                 {
                     throw new NotFoundException($"User with {request.AccountNumber} doesn't exist.");
                 }
@@ -246,11 +246,6 @@ namespace USSDMiddleware.Core.Managers
 
                 BlockAccount updateBlockAccount = await UpdateBlockAccount(blockAccountResponse, logBlockAccountRequest, providerId);
 
-                if (blockAccountResponse.ResponseStatus == "Failed")
-                {
-                    throw new NotSuccessfulException("Account blocking was unsuccessful.");
-                }
-                
                 return blockAccountResponse;
 
             }
@@ -276,17 +271,11 @@ namespace USSDMiddleware.Core.Managers
 
         public async Task<BlockAccount> UpdateBlockAccount(BlockAccountResponse blockAccountResponse, BlockAccount logBlockAccountRequest, string providerId)
         {
-            if (blockAccountResponse.ResponseStatus == "Successful")
-            {
-                logBlockAccountRequest.ResponseStatus = blockAccountResponse.ResponseStatus;
-                logBlockAccountRequest.ResponseDescription = blockAccountResponse.ResponseDescription;
-                logBlockAccountRequest.RequestStatus = blockAccountResponse.RequestStatus;
-            }
-            else
-            {
-                throw new NotSuccessfulException("Failed to block account.");
 
-            }
+            logBlockAccountRequest.ResponseStatus = blockAccountResponse.ResponseStatus;
+            logBlockAccountRequest.ResponseDescription = blockAccountResponse.ResponseDescription;
+            logBlockAccountRequest.RequestStatus = blockAccountResponse.RequestStatus;
+
             return await _blockAccountRepository.UpdateBlockAccount(logBlockAccountRequest, providerId);
 
         }

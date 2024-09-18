@@ -255,7 +255,12 @@ namespace USSDMiddleware.Core.Managers
                 }
                 else
                 {
-                    throw new NotFoundException("No cards found for the provided account.");
+                    return new FreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "No cards found for the provided account.",
+                        TransactionReference = reference
+                    };
                 }
 
             }
@@ -336,8 +341,6 @@ namespace USSDMiddleware.Core.Managers
                     string serialNo = cardResponse.Cards.First().SerialNo;
 
                     request.SerialNo = serialNo;
-                    
-                    cardResponse = await provider.GetCustomerCards(getCustomerCardRequest);
 
                     var unfreezeCardResponse = await provider.UnFreezeCard(request);
 
@@ -348,7 +351,7 @@ namespace USSDMiddleware.Core.Managers
                     return new UnFreezeCardResponse
                     {
                         IsSuccessful = false,
-                        ResponseMessage = "No cards found for the provided account.",
+                        ResponseMessage = "No card found for the provided account.",
                         Reference = reference
                     };
                 }
