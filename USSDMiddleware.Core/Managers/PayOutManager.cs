@@ -159,7 +159,7 @@ namespace USSDMiddleware.Core.Managers
                     DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
                     CustomerDebit updateCustomerDebit = await UpdateCustomerDebit(debitResponse, logdebitRequest, providerId);
 
-                    if (debitResponse.IsSuccessful && debitResponse.ResponseCode == "00")
+                    if (debitResponse.IsSuccessful && debitResponse.ResponseCode.Equals("00"))
                     {
                         await
                         _backgroundService.EnqueueProcess(() =>
