@@ -74,17 +74,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 if (users == null || users.Length == 0)
                 {
                     _log.LogError("No customer found in the response");
-                    return new GetUserByPhoneNumberResponse
-                    {
-                        PhoneNumber = phoneNumber,
-                        CustomerID = null, 
-                        LastName = null,
-                        OtherNames = null,
-                        Address = null,
-                        Email = null,
-                        BankVerificationNumber = null,
-                        DateOfBirth = null
-                    };
+                    return null;
                 }
 
                 var user = users[0];
@@ -101,18 +91,8 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while processing accounts retrieval");
-                return new GetUserByPhoneNumberResponse
-                {
-                    PhoneNumber = phoneNumber,
-                    CustomerID = null,
-                    LastName = null,
-                    OtherNames = null,
-                    Address = null,
-                    Email = null,
-                    BankVerificationNumber = null,
-                    DateOfBirth = null
-                };
+                _log.LogError(ex, $"An error occurred while processing accounts retrieval: {ex.Message}");
+                return null;
             }
         }
 
@@ -136,86 +116,12 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogError($"User not found: {errorMessage}");
 
-                return new GetUserByAccountNumberResponse
-                {
-                    Name = null, 
-                    ErrorMessage = errorMessage 
-                };
+                return null;
             }
 
             return null;
         }
-
-        //public async Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber)
-        //{
-        //    var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByAccountNo2/2")}&accountNumber={accountNumber}";
-
-        //    _log.LogInformation($"GetUserByAccountNumber Url: {url}");
-
-        //    try
-        //    {
-        //        var response = await _httpService.Get<string>(url, BuildHeader());
-
-        //        if (!IsJson(response))
-        //        {
-        //            HandleErrorResponse(response);
-        //        }
-
-        //        var jsonResponse = JObject.Parse(response);
-        //        var name = jsonResponse["name"]?.ToString();
-
-        //        var user = JsonConvert.DeserializeObject<GetUserByAccountNumberResponse>(response)
-        //            ?? throw new NotFoundException("User not found.");
-
-        //        if (string.IsNullOrWhiteSpace(user.Name))
-        //        {
-        //            throw new NotFoundException("User name not found.");
-        //        }
-
-        //        return user;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _log.LogError(ex, "User not found.");
-        //        throw new NotSuccessfulException(ex.Message);
-        //    }
-        //}
-
-        //public async Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber)
-        //{
-        //    try
-        //    {
-        //        var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByAccountNo2/2")}&accountNumber={accountNumber}";
-
-        //        _log.LogInformation($"GetUserByAccountNumber Url: {url}");
-
-        //        var response = await _httpService.Get(url, BuildHeader());
-
-        //        if (response is GetUserByAccountNumberResponse user)
-        //        {
-        //            return Builder<GetUserByAccountNumberResponse>.CreateNew()
-        //                .With(g => g.Name = user.Name)
-        //                .Build();
-        //        }
-        //        else if (response is string errorMessage)
-        //        {
-        //            errorMessage = errorMessage.Replace("\\\"", "\"");
-
-        //            _log.LogError($"User not found: {errorMessage}");
-        //            throw new NotFoundException(errorMessage);
-        //        }
-
-
-        //        throw new NotFoundException("Unexpected response format.");
-
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _log.LogError($"User not found.{ex.Message}");
-        //        throw new NotSuccessfulException($"User not found: {ex.Message}");
-        //    }
-        //}
-
+        
         public async Task<AccountCreationResponse> CreateAccount(AccountCreationRequest req)
         {
             try
@@ -229,7 +135,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var isSuccess = rsp["IsSuccessful"]!.Value<bool>();
                 if (!isSuccess)
                 {
-                    return new AccountCreationResponse(null, null, null, null);
+                    return null;
 
                 }
 
@@ -241,12 +147,11 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while trying to create account!");
-                return new AccountCreationResponse(null, null, null, null);
-
+                _log.LogError(ex, $"An error occurred while trying to create account!: {ex.Message}");
+                return null;
             }
 
-            return new AccountCreationResponse(null, null, null, null);
+            return null;
 
         }
 
@@ -322,30 +227,43 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation($"CreateAccount Url: {url}");
 
-                var serviceRsp = await _httpService.Get<JArray>(url, BuildHeader());
+                var serviceRsp = await _httpService.Get<JObject>(url, BuildHeader());
 
-                if (serviceRsp == null || serviceRsp.Count == 0)
+                if (serviceRsp == null)
                 {
-                    _log.LogError("No accounts found in the response");
-                    return new List<GetAccountResponse>(); 
+                    return null;
+
                 }
 
-                var accounts = serviceRsp.SelectMany(customer => customer["Accounts"])
-                    .Select(account => new GetAccountResponse
-                    {
-                        AccountNumber = account["AccountNumber"]?.ToString(),
-                        AccountType = account["AccountType"]?.ToString(),
-                        AccountStatus = account["AccountStatus"]?.ToString(),
-                        AccessLevel = account["AccessLevel"]?.ToString()
-                    })
-                    .ToList();
+                if (serviceRsp["IsSuccessful"]?.ToObject<bool>() == false)
+                {
+                    var errorMessage = serviceRsp["Message"]?.ToString();
+                    _log.LogError($"Error from provider: {errorMessage}");
+                    return null;
+                }
+
+                if (serviceRsp["Accounts"] == null || !serviceRsp["Accounts"].Any())
+                {
+                    _log.LogError("No accounts found in the response");
+                    return null;
+                }
+
+                var accounts = serviceRsp["Accounts"]
+            .Select(account => new GetAccountResponse
+            {
+                AccountNumber = account["AccountNumber"]?.ToString(),
+                AccountType = account["AccountType"]?.ToString(),
+                AccountStatus = account["AccountStatus"]?.ToString(),
+                AccessLevel = account["AccessLevel"]?.ToString()
+            })
+            .ToList();
 
                 return accounts;
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while processing accounts retrieval");
-                return new List<GetAccountResponse>(); 
+                _log.LogError(ex, $"No accounts found: {ex.Message}");
+                return null;
             }
         }
 
@@ -377,7 +295,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var debitResponseContent = await _httpService.Post<DebitCustomerAccountResponse>(debitUrl, headers, jsonContent);
 
-              
+
                 var debitResult = new DebitCustomerAccountResponse
                 {
                     IsSuccessful = debitResponseContent.IsSuccessful,
@@ -956,13 +874,6 @@ namespace USSDMiddleware.Infrastructure.Providers
                 .Build();
         }
 
-        private void HandleErrorResponse(string response)
-        {
-            _log.LogError($"User not found: {response}");
-            throw new NotFoundException($"User not found: {response}");
-        }
-
-        private bool IsJson(string input) => input.Trim().StartsWith("{") && input.Trim().EndsWith("}");
     }
 
 }

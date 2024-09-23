@@ -132,7 +132,7 @@ namespace USSDMiddleware.Core.Managers
                 }).ToList();
 
             }
-            return new List<UserAccountNumber>();
+            return null;
         }
 
         public async Task<AccountBalanceEnquiry> GetAccountBalance(AccountRequest request)

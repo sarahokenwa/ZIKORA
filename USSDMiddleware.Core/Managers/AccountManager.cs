@@ -75,6 +75,7 @@ namespace USSDMiddleware.Core.Managers
                     return new CreateAccountResponse(request.ValidationReference, validationLog.PhoneNumber, null);
 
                 }
+
                 byte[] salt = Utility.GetSalt();
                 var configuration = new ConfigurationBuilder().Build();
                 var model = BuildUtil.BuildAccountCreationRequest(validationLog, configuration);

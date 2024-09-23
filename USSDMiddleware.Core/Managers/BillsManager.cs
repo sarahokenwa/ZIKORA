@@ -225,8 +225,7 @@ namespace USSDMiddleware.Core.Managers
                 RetrievalReference = merchantRef,
                 Amount = requestModel.Amount
             };
-
-             var requery = await provider.StatusQuery(requeryPayload);
+            var requery = await provider.StatusQuery(requeryPayload);
             if (requery != null && !requery.ResponseCode.Equals("00"))
             {
                 return new VendResponse

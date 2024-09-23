@@ -71,17 +71,18 @@ namespace USSDMiddleware.Core.Managers
 
                 if (userExists == null)
                 {
-                    throw new NotFoundException("Invalid account number.");
+                    return new CardResponse { ResponseMessage = "Invalid account number.", IsSuccessful = false };
                 }
                 
                 var userPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
-                if(userPin == null)
+                if(!userPin)
                 {
-                    return new CardResponse { ResponseMessage = "Invalid phone number or pin.", IsSuccessful = false };
+                    return new CardResponse { ResponseMessage = "The pin entered is incorrect.", IsSuccessful = false };
 
                 }
+
                 GetUserByAccountNumberResponse user = await provider.GetUserByAccountNumber(request.AccountNumber);
-                if (string.IsNullOrEmpty(user.Name) && !string.IsNullOrEmpty(user.ErrorMessage))
+                if (string.IsNullOrEmpty(user.Name) || !string.IsNullOrEmpty(user.ErrorMessage))
                 {
                     return new CardResponse
                     {
@@ -122,12 +123,12 @@ namespace USSDMiddleware.Core.Managers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while trying to make a card request.");
+                _log.LogError(ex, $"An error occurred while trying to make a card request: {ex.Message}");
 
                 return new CardResponse
                 {
                     IsSuccessful = false,
-                    ResponseMessage = $"An error occurred while trying to make a card request: {ex.Message}"
+                    ResponseMessage = "An error occurred while trying to make a card request"
                 };
             }
         }
@@ -270,12 +271,12 @@ namespace USSDMiddleware.Core.Managers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while trying to freeze card.");
+                _log.LogError(ex, $"An error occurred while trying to freeze card: {ex.Message}");
 
                 return new FreezeCardResponse
                 {
                     IsSuccessful = false,
-                    ResponseMessage = $"An error occurred while trying to freeze card: {ex.Message}"
+                    ResponseMessage = $"An error occurred while trying to freeze card."
                 };
             }
         }
@@ -364,12 +365,12 @@ namespace USSDMiddleware.Core.Managers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while trying to unfreeze card.");
+                _log.LogError(ex, $"An error occurred while trying to unfreeze card: {ex.Message}");
 
                 return new UnFreezeCardResponse
                 {
                     IsSuccessful = false,
-                    ResponseMessage = $"An error occurred while trying to unfreeze card: {ex.Message}"
+                    ResponseMessage = $"An error occurred while trying to unfreeze card."
                 };
 
             }
