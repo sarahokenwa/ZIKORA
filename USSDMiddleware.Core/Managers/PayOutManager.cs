@@ -122,11 +122,11 @@ namespace USSDMiddleware.Core.Managers
                 var providerId = await provider.GetProviderId(_providerManager);
 
                 var transactionPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
-                if (transactionPin == false)
+                if (!transactionPin)
                 {
                     return new InstantPayOutResponse
                     {
-                        Message = "Invalid phone number or pin.",
+                        Message = "The pin entered is incorrect.",
                         Succeeded = false 
                     };
 
@@ -364,7 +364,7 @@ namespace USSDMiddleware.Core.Managers
                 if (!transactionPin)
                 {
                     return new IntraBankTransferResponse { 
-                        ResponseMessage = "Invalid phone number or pin.", 
+                        ResponseMessage = "The pin entered is incorrect.", 
                         IsSuccessful = false
                     };
 

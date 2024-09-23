@@ -3,6 +3,7 @@ using System.Text;
 using USSDMiddleware.Core.Interfaces.Component;
 using Newtonsoft.Json;
 using System.Net.Http.Headers;
+using USSDMiddleware.Core.Models.ResponseModel;
 
 namespace USSDMiddleware.Core.Utilities
 {
@@ -15,6 +16,29 @@ namespace USSDMiddleware.Core.Utilities
         {
             _log = log;
             _httpClient = httpClient;
+        }
+
+        public async Task<object> Get(string url, IDictionary<string, string>? headers)
+        {
+            if (headers != null)
+            {
+                foreach (var header in headers)
+                {
+                    _httpClient.DefaultRequestHeaders.Add(header.Key, header.Value);
+                }
+            }
+
+            var response = await _httpClient.GetAsync(url);
+            var rsp = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                return JsonConvert.DeserializeObject<GetUserByAccountNumberResponse>(rsp);
+            }
+            else
+            {
+                return rsp;
+            }
         }
 
         public async Task<T> Get<T>(string url, IDictionary<string, string>? headers)
@@ -30,10 +54,11 @@ namespace USSDMiddleware.Core.Utilities
             var response = await _httpClient.GetAsync(url);
             var rsp = await response.Content.ReadAsStringAsync();
             var result = JsonConvert.DeserializeObject<T>(rsp);
-           // _httpClient.Dispose();
+            // _httpClient.Dispose();
+
             return result;
         }
-       
+
         public async Task<T> Post<T>(string url, IDictionary<string, string>? headers, string jsonContent)
         {
             if (headers != null)

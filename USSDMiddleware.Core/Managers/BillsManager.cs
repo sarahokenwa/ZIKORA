@@ -140,7 +140,7 @@ namespace USSDMiddleware.Core.Managers
                 bool isPinValid = await _userManager.ValidateTransactionPin(requestModel.TransactionPin, requestModel.CustomerMobile, providerId);
                 if (!isPinValid)
                 {
-                    return new VendResponse { Message = "Invalid phone number or pin.", Succeeded = false };
+                    return new VendResponse { Message = "The pin entered is incorrect.", Succeeded = false };
                 }
 
                 var userDetail = await _userRepository.GetByPhoneNumber(requestModel.CustomerMobile, providerId);
@@ -225,7 +225,6 @@ namespace USSDMiddleware.Core.Managers
                 RetrievalReference = merchantRef,
                 Amount = requestModel.Amount
             };
-
             var requery = await provider.StatusQuery(requeryPayload);
             if (requery != null && !requery.ResponseCode.Equals("00"))
             {
