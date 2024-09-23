@@ -364,7 +364,7 @@ namespace USSDMiddleware.Core.Managers
                 if (!transactionPin)
                 {
                     return new IntraBankTransferResponse { 
-                        ResponseMessage = "Invalid phone number or pin.", 
+                        ResponseMessage = "The pin entered is incorrect.", 
                         IsSuccessful = false
                     };
 

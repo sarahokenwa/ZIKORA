@@ -72,8 +72,8 @@ namespace USSDMiddleware.Core.Managers
                 var user = await _userRepository.GetByPhoneNumber(validationLog.PhoneNumber, providerId);
                 if (user.HasValue)
                 {
-                    throw new BadRequestException(
-                        $"A user has already exist for this reference {validationLog.ValidationReference}");
+                    return new CreateAccountResponse(request.ValidationReference, validationLog.PhoneNumber, null);
+
                 }
                 byte[] salt = Utility.GetSalt();
                 var configuration = new ConfigurationBuilder().Build();
@@ -98,7 +98,8 @@ namespace USSDMiddleware.Core.Managers
             catch (Exception ex)
             {
                 _log.LogError(ex, "An error occurred while trying to creating account");
-                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Account creation failed.");
+                return new CreateAccountResponse(request.ValidationReference, null, null); 
+
             }
         }
 
@@ -230,7 +231,7 @@ namespace USSDMiddleware.Core.Managers
                     return new BlockAccountResponse
                     {
                         RequestStatus = false,
-                        ResponseDescription = "Invalid phone number or pin.",
+                        ResponseDescription = "The pin entered is incorrect.",
                         ResponseStatus = "Failed"
                     };
                 }

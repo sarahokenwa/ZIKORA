@@ -54,6 +54,8 @@ namespace USSDMiddleware.Infrastructure.Providers
             catch (Exception ex)
             {
                 _log.LogError(ex, "An error occurred while trying to validate customer phone!");
+                return new PhoneValidationResponse(false, false, "Phone number validation failed.");
+
             }
 
             return new PhoneValidationResponse(false, false, "Phone number does not exist!");
@@ -72,7 +74,17 @@ namespace USSDMiddleware.Infrastructure.Providers
                 if (users == null || users.Length == 0)
                 {
                     _log.LogError("No customer found in the response");
-                    throw new NotFoundException("Failed to retrieve user.");
+                    return new GetUserByPhoneNumberResponse
+                    {
+                        PhoneNumber = phoneNumber,
+                        CustomerID = null, 
+                        LastName = null,
+                        OtherNames = null,
+                        Address = null,
+                        Email = null,
+                        BankVerificationNumber = null,
+                        DateOfBirth = null
+                    };
                 }
 
                 var user = users[0];
@@ -90,36 +102,119 @@ namespace USSDMiddleware.Infrastructure.Providers
             catch (Exception ex)
             {
                 _log.LogError(ex, "An error occurred while processing accounts retrieval");
-                throw new NotSuccessfulException("Failed to retrieve users.");
+                return new GetUserByPhoneNumberResponse
+                {
+                    PhoneNumber = phoneNumber,
+                    CustomerID = null,
+                    LastName = null,
+                    OtherNames = null,
+                    Address = null,
+                    Email = null,
+                    BankVerificationNumber = null,
+                    DateOfBirth = null
+                };
             }
         }
 
         public async Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber)
         {
-            try
+            var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByAccountNo2/2")}&accountNumber={accountNumber}";
+
+            _log.LogInformation($"GetUserByAccountNumber Url: {url}");
+
+            var response = await _httpService.Get(url, BuildHeader());
+
+            if (response is GetUserByAccountNumberResponse user)
             {
-                var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByAccountNo2/2")}&accountNumber={accountNumber}";
-
-                _log.LogInformation($"GetUserByAccountNumber Url: {url}");
-
-                var user = await _httpService.Get<GetUserByAccountNumberResponse>(url, BuildHeader());
-
-                if (user == null)
-                {
-                    _log.LogError("No customer found in the response");
-                    throw new NotFoundException("Failed to retrieve user.");
-                }
-
                 return Builder<GetUserByAccountNumberResponse>.CreateNew()
                     .With(g => g.Name = user.Name)
                     .Build();
             }
-            catch (Exception ex)
+            else if (response is string errorMessage)
             {
-                _log.LogError(ex, "An error occurred while retrieveing users.");
-                throw new NotSuccessfulException("Failed to retrieve users.");
+                errorMessage = errorMessage.Replace("\\\"", "\"").Trim('"');
+
+                _log.LogError($"User not found: {errorMessage}");
+
+                return new GetUserByAccountNumberResponse
+                {
+                    Name = null, 
+                    ErrorMessage = errorMessage 
+                };
             }
+
+            return null;
         }
+
+        //public async Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber)
+        //{
+        //    var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByAccountNo2/2")}&accountNumber={accountNumber}";
+
+        //    _log.LogInformation($"GetUserByAccountNumber Url: {url}");
+
+        //    try
+        //    {
+        //        var response = await _httpService.Get<string>(url, BuildHeader());
+
+        //        if (!IsJson(response))
+        //        {
+        //            HandleErrorResponse(response);
+        //        }
+
+        //        var jsonResponse = JObject.Parse(response);
+        //        var name = jsonResponse["name"]?.ToString();
+
+        //        var user = JsonConvert.DeserializeObject<GetUserByAccountNumberResponse>(response)
+        //            ?? throw new NotFoundException("User not found.");
+
+        //        if (string.IsNullOrWhiteSpace(user.Name))
+        //        {
+        //            throw new NotFoundException("User name not found.");
+        //        }
+
+        //        return user;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _log.LogError(ex, "User not found.");
+        //        throw new NotSuccessfulException(ex.Message);
+        //    }
+        //}
+
+        //public async Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber)
+        //{
+        //    try
+        //    {
+        //        var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByAccountNo2/2")}&accountNumber={accountNumber}";
+
+        //        _log.LogInformation($"GetUserByAccountNumber Url: {url}");
+
+        //        var response = await _httpService.Get(url, BuildHeader());
+
+        //        if (response is GetUserByAccountNumberResponse user)
+        //        {
+        //            return Builder<GetUserByAccountNumberResponse>.CreateNew()
+        //                .With(g => g.Name = user.Name)
+        //                .Build();
+        //        }
+        //        else if (response is string errorMessage)
+        //        {
+        //            errorMessage = errorMessage.Replace("\\\"", "\"");
+
+        //            _log.LogError($"User not found: {errorMessage}");
+        //            throw new NotFoundException(errorMessage);
+        //        }
+
+
+        //        throw new NotFoundException("Unexpected response format.");
+
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _log.LogError($"User not found.{ex.Message}");
+        //        throw new NotSuccessfulException($"User not found: {ex.Message}");
+        //    }
+        //}
 
         public async Task<AccountCreationResponse> CreateAccount(AccountCreationRequest req)
         {
@@ -134,8 +229,8 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var isSuccess = rsp["IsSuccessful"]!.Value<bool>();
                 if (!isSuccess)
                 {
-                    throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED,
-                        rsp["Message"]!.Value<string>());
+                    return new AccountCreationResponse(null, null, null, null);
+
                 }
 
                 var messageToken = rsp["Message"];
@@ -147,9 +242,12 @@ namespace USSDMiddleware.Infrastructure.Providers
             catch (Exception ex)
             {
                 _log.LogError(ex, "An error occurred while trying to create account!");
+                return new AccountCreationResponse(null, null, null, null);
+
             }
 
-            throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Account creation failed.");
+            return new AccountCreationResponse(null, null, null, null);
+
         }
 
 
@@ -229,7 +327,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 if (serviceRsp == null || serviceRsp.Count == 0)
                 {
                     _log.LogError("No accounts found in the response");
-                    throw new NotSuccessfulException("Failed to retrieve accounts.");
+                    return new List<GetAccountResponse>(); 
                 }
 
                 var accounts = serviceRsp.SelectMany(customer => customer["Accounts"])
@@ -247,7 +345,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             catch (Exception ex)
             {
                 _log.LogError(ex, "An error occurred while processing accounts retrieval");
-                throw new NotSuccessfulException("Failed to retrieve accounts.");
+                return new List<GetAccountResponse>(); 
             }
         }
 
@@ -356,14 +454,27 @@ namespace USSDMiddleware.Infrastructure.Providers
                 {
                     var errorMessage = cardResponseContent?.ResponseMessage;
                     _log.LogError($"Card request failed: {errorMessage}");
-                    throw new NotSuccessfulException(errorMessage);
 
+                    var cardResult = new CardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = errorMessage
+                    };
+                    return cardResult;
                 }
             }
             catch (Exception ex)
             {
+                var errorMessage = $"An error occurred while making card request: {ex.Message}";
+
                 _log.LogError($"An error occurred while making card request: {ex.Message}");
-                throw new OperationFailedException($"Failed to make card request: {ex.Message}", ex);
+
+                var cardResult = new CardResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = errorMessage
+                };
+                return cardResult;
             }
         }
 
@@ -673,14 +784,27 @@ namespace USSDMiddleware.Infrastructure.Providers
                 {
                     var errorMessage = response?.ResponseMessage;
                     _log.LogError($"The attempt to freeze the card was unsuccessful: {errorMessage}");
-                    throw new NotSuccessfulException(errorMessage);
 
+                    var freezeCardResponse = new FreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = errorMessage
+                    };
+                    return freezeCardResponse;
                 }
             }
             catch (Exception ex)
             {
+                var errorMessage = $"An error occurred while making card request: {ex.Message}";
+
                 _log.LogError($"The attempt to freeze the card was unsuccessful: {ex.Message}");
-                throw new OperationFailedException($"The attempt to freeze the card was unsuccessful:{ex.Message}", ex);
+
+                var freezeCardResponse = new FreezeCardResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = errorMessage
+                };
+                return freezeCardResponse;
             }
         }
 
@@ -708,23 +832,45 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation($"UnFreezeCard Request Body: {jsonContent}");
 
                 var response = await _httpService.Post<UnFreezeCardResponse>(unFreezeCardUrl, headers, jsonContent);
-
-                var unFreezeCardResponse = new UnFreezeCardResponse
+                if (response.IsSuccessful)
                 {
-                    IsSuccessful = response.IsSuccessful,
-                    ResponseMessage = response.ResponseMessage,
-                    Reference = response.Reference,
-                };
 
-                _log.LogInformation($"UnFreeze card result: {JsonConvert.SerializeObject(unFreezeCardResponse)}");
+                    var unFreezeCardResponse = new UnFreezeCardResponse
+                    {
+                        IsSuccessful = response.IsSuccessful,
+                        ResponseMessage = response.ResponseMessage,
+                        Reference = response.Reference,
+                    };
 
-                return unFreezeCardResponse;
+                    _log.LogInformation($"UnFreeze card result: {JsonConvert.SerializeObject(unFreezeCardResponse)}");
 
+                    return unFreezeCardResponse;
+                }
+                else
+                {
+                    var errorMessage = response?.ResponseMessage;
+                    _log.LogError($"The attempt to freeze the card was unsuccessful: {errorMessage}");
+
+                    var unfreezeCardResponse = new UnFreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = errorMessage
+                    };
+                    return unfreezeCardResponse;
+                }
             }
             catch (Exception ex)
             {
-                _log.LogError($"The attempt to unfreeze the card was unsuccessful: {ex.Message}");
-                throw new OperationFailedException($"The attempt to unfreeze the card was unsuccessful:{ex.Message}", ex);
+                var errorMessage = $"An error occurred while making card request: {ex.Message}";
+
+                _log.LogError($"The attempt to freeze the card was unsuccessful: {ex.Message}");
+
+                var unfreezeCardResponse = new UnFreezeCardResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = errorMessage
+                };
+                return unfreezeCardResponse;
             }
         }
 
@@ -809,6 +955,14 @@ namespace USSDMiddleware.Infrastructure.Providers
                     : "")
                 .Build();
         }
+
+        private void HandleErrorResponse(string response)
+        {
+            _log.LogError($"User not found: {response}");
+            throw new NotFoundException($"User not found: {response}");
+        }
+
+        private bool IsJson(string input) => input.Trim().StartsWith("{") && input.Trim().EndsWith("}");
     }
 
 }

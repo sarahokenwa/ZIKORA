@@ -80,10 +80,14 @@ namespace USSDMiddleware.Core.Managers
                     return new CardResponse { ResponseMessage = "Invalid phone number or pin.", IsSuccessful = false };
 
                 }
-                var user = await provider.GetUserByAccountNumber(request.AccountNumber);
-                if (user == null)
+                GetUserByAccountNumberResponse user = await provider.GetUserByAccountNumber(request.AccountNumber);
+                if (string.IsNullOrEmpty(user.Name) && !string.IsNullOrEmpty(user.ErrorMessage))
                 {
-                    throw new NotFoundException("User not found.");
+                    return new CardResponse
+                    {
+                        ResponseMessage = user.ErrorMessage,
+                        IsSuccessful = false
+                    };
                 }
 
                 var cardRequestExtension = new CardRequestExtension
@@ -102,9 +106,13 @@ namespace USSDMiddleware.Core.Managers
 
 
                 CardResponse cardResponse = await provider.CardRequest(cardRequestExtension);
-                if (cardResponse == null || !cardResponse.IsSuccessful)
+                if (!cardResponse.IsSuccessful)
                 {
-                    throw new NotSuccessfulException("Card response is empty or missing.");
+                    return new CardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = cardResponse.ResponseMessage
+                    };
                 }
 
                 Card updateCardRequest = await UpdateCardRequest(cardResponse, logCardRequest, providerId);
@@ -115,7 +123,12 @@ namespace USSDMiddleware.Core.Managers
             catch (Exception ex)
             {
                 _log.LogError(ex, "An error occurred while trying to make a card request.");
-                throw new NotSuccessfulException(ex.Message);
+
+                return new CardResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = $"An error occurred while trying to make a card request: {ex.Message}"
+                };
             }
         }
 
@@ -174,9 +187,7 @@ namespace USSDMiddleware.Core.Managers
                     return new FreezeCardResponse
                     {
                         IsSuccessful = false,
-                        ResponseCode = null,
                         ResponseMessage = "AccountNumber  is required",
-                        TransactionReference = ""
                     };
                 }
 
@@ -185,9 +196,7 @@ namespace USSDMiddleware.Core.Managers
                     return new FreezeCardResponse
                     {
                         IsSuccessful = false,
-                        ResponseCode = null,
                         ResponseMessage = "Reason  is required",
-                        TransactionReference = ""
                     };
                 }
 
@@ -196,9 +205,7 @@ namespace USSDMiddleware.Core.Managers
                     return new FreezeCardResponse
                     {
                         IsSuccessful = false,
-                        ResponseCode = null,
                         ResponseMessage = "PhoneNumber  is required",
-                        TransactionReference = ""
                     };
                 }
 
@@ -207,9 +214,7 @@ namespace USSDMiddleware.Core.Managers
                     return new FreezeCardResponse
                     {
                         IsSuccessful = false,
-                        ResponseCode = null,
                         ResponseMessage = "Transaction pin  is required",
-                        TransactionReference = ""
                     };
                 }
 
@@ -220,7 +225,7 @@ namespace USSDMiddleware.Core.Managers
                 bool isPinValid = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
                 if (!isPinValid)
                 {
-                    return new FreezeCardResponse { ResponseMessage = "Invalid phone number or pin.", IsSuccessful = false };
+                    return new FreezeCardResponse { ResponseMessage = "The pin entered is incorrect.", IsSuccessful = false };
 
                 }
 
@@ -259,7 +264,6 @@ namespace USSDMiddleware.Core.Managers
                     {
                         IsSuccessful = false,
                         ResponseMessage = "No cards found for the provided account.",
-                        TransactionReference = reference
                     };
                 }
 
@@ -267,7 +271,12 @@ namespace USSDMiddleware.Core.Managers
             catch (Exception ex)
             {
                 _log.LogError(ex, "An error occurred while trying to freeze card.");
-                throw new NotSuccessfulException(ex.Message);
+
+                return new FreezeCardResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = $"An error occurred while trying to freeze card: {ex.Message}"
+                };
             }
         }
 
@@ -281,7 +290,6 @@ namespace USSDMiddleware.Core.Managers
                     {
                         IsSuccessful = false,
                         ResponseMessage = "AccountNumber  is required",
-                        Reference = ""
                     };
                 }
 
@@ -291,7 +299,6 @@ namespace USSDMiddleware.Core.Managers
                     {
                         IsSuccessful = false,
                         ResponseMessage = "Reason  is required",
-                        Reference = ""
                     };
                 }
 
@@ -301,7 +308,6 @@ namespace USSDMiddleware.Core.Managers
                     {
                         IsSuccessful = false,
                         ResponseMessage = "PhoneNumber  is required",
-                        Reference = ""
                     };
                 }
 
@@ -322,7 +328,7 @@ namespace USSDMiddleware.Core.Managers
                 bool isPinValid = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
                 if (!isPinValid)
                 {
-                    return new UnFreezeCardResponse { ResponseMessage = "Invalid phone number or pin.", IsSuccessful = false };
+                    return new UnFreezeCardResponse { ResponseMessage = "The pin entered is incorrect.", IsSuccessful = false };
 
                 }
 
@@ -359,7 +365,13 @@ namespace USSDMiddleware.Core.Managers
             catch (Exception ex)
             {
                 _log.LogError(ex, "An error occurred while trying to unfreeze card.");
-                throw new NotSuccessfulException(ex.Message);
+
+                return new UnFreezeCardResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = $"An error occurred while trying to unfreeze card: {ex.Message}"
+                };
+
             }
         }
     }

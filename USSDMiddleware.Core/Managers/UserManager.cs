@@ -43,7 +43,11 @@ namespace USSDMiddleware.Core.Managers
 
             if (user.HasValue)
             {
-                throw new AlreadyExistException($"User with {request.PhoneNumber} already exist");
+                return new CreateUserResponse
+                {
+                    userId = null, 
+                    message = $"User with phone number {request.PhoneNumber} already exists."
+                };
             }
 
             byte[] salt = Utility.GetSalt();
@@ -80,6 +84,7 @@ namespace USSDMiddleware.Core.Managers
             if (user.HasValue)
             {
                 return new PhoneValidationResponse(true, false, "Successful");
+
             }
 
             return await provider.ValidatePhone(request);
@@ -143,7 +148,7 @@ namespace USSDMiddleware.Core.Managers
                 return new AccountBalanceEnquiry
                 {
                     Balance = "",
-                    Message = "Invalid phone number or pin",
+                    Message = "The pin entered is incorrect",
                     Status = false,
 
                 };  
