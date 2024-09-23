@@ -227,7 +227,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation($"CreateAccount Url: {url}");
 
-                var serviceRsp = await _httpService.Get<JObject>(url, BuildHeader());
+                var serviceRsp = await _httpService.Get<JArray>(url, BuildHeader());
 
                 if (serviceRsp == null)
                 {
@@ -235,28 +235,21 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 }
 
-                if (serviceRsp["IsSuccessful"]?.ToObject<bool>() == false)
-                {
-                    var errorMessage = serviceRsp["Message"]?.ToString();
-                    _log.LogError($"Error from provider: {errorMessage}");
-                    return null;
-                }
-
-                if (serviceRsp["Accounts"] == null || !serviceRsp["Accounts"].Any())
+                if (serviceRsp == null || serviceRsp.Count == 0)
                 {
                     _log.LogError("No accounts found in the response");
-                    return null;
+                    throw new NotSuccessfulException("Failed to retrieve accounts.");
                 }
 
-                var accounts = serviceRsp["Accounts"]
-            .Select(account => new GetAccountResponse
-            {
-                AccountNumber = account["AccountNumber"]?.ToString(),
-                AccountType = account["AccountType"]?.ToString(),
-                AccountStatus = account["AccountStatus"]?.ToString(),
-                AccessLevel = account["AccessLevel"]?.ToString()
-            })
-            .ToList();
+                var accounts = serviceRsp.SelectMany(customer => customer["Accounts"])
+                    .Select(account => new GetAccountResponse
+                    {
+                        AccountNumber = account["AccountNumber"]?.ToString(),
+                        AccountType = account["AccountType"]?.ToString(),
+                        AccountStatus = account["AccountStatus"]?.ToString(),
+                        AccessLevel = account["AccessLevel"]?.ToString()
+                    })
+                    .ToList();
 
                 return accounts;
             }
