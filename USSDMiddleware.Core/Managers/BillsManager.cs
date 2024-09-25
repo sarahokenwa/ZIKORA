@@ -119,7 +119,7 @@ namespace USSDMiddleware.Core.Managers
                 email = requestModel.customerEmail,
                 itemCode = requestModel.itemCode,
                 phone = requestModel.customerPhoneNumber,
-                phoneValidation = requestModel.shouldVerifyCustomer,
+                phoneValidation = false,
             };
             return await _cyberPayProvider.Validate(request);
         }

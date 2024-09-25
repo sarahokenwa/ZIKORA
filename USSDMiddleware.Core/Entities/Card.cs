@@ -18,7 +18,7 @@ namespace USSDMiddleware.Core.Entities
         public string? BIN { get; set; }
 
         [StringLength(60)]
-        public string ProcessorRef { get; set; }
+        public string? ProcessorRef { get; set; }
 
         [StringLength(60)]
         public string? RequestType { get; set; }
@@ -38,7 +38,7 @@ namespace USSDMiddleware.Core.Entities
         public bool IsSuccessful { get; set; }
 
         [StringLength(200)]
-        public string ResponseMessage { get; set; }
+        public string? ResponseMessage { get; set; }
 
         [StringLength(60)]
         public string? Identifier { get; set; }

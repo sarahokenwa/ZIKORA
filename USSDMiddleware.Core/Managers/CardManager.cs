@@ -82,15 +82,15 @@ namespace USSDMiddleware.Core.Managers
                 }
 
                 GetUserByAccountNumberResponse user = await provider.GetUserByAccountNumber(request.AccountNumber);
-                if (string.IsNullOrEmpty(user.Name) || !string.IsNullOrEmpty(user.ErrorMessage))
+           
+                if (string.IsNullOrEmpty(user.Name))
                 {
                     return new CardResponse
                     {
-                        ResponseMessage = user.ErrorMessage,
-                        IsSuccessful = false
+                        IsSuccessful = false,
+                        ResponseMessage = $"Invalid account number {request.AccountNumber}. Please confirm and try again."
                     };
                 }
-
                 var cardRequestExtension = new CardRequestExtension
                 {
                     AccountNumber = request.AccountNumber,
