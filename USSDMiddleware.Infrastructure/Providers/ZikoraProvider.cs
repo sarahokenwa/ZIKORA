@@ -116,7 +116,9 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogError($"User not found: {errorMessage}");
 
-                return null;
+                return Builder<GetUserByAccountNumberResponse>.CreateNew()
+                     .With(g => g.Name = null)
+                     .Build();
             }
 
             return null;
