@@ -5,6 +5,7 @@ namespace USSDMiddleware.Core.Interfaces.Repositories
 {
     public interface IUserRepository
     {
-        Task<Optional<User>> GetByPhoneNumber(string phoneNumber);
+        Task<Optional<User>> GetByPhoneNumber(string phoneNumber, string providerId);
+        Task<User> CreateUser(User user);
     }
 }

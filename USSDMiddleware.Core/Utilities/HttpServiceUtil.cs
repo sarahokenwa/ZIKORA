@@ -1,11 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Text;
-using Aornis;
 using USSDMiddleware.Core.Interfaces.Component;
 using Newtonsoft.Json;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using static System.Net.WebRequestMethods;
+using USSDMiddleware.Core.Models.ResponseModel;
 
 namespace USSDMiddleware.Core.Utilities
 {
@@ -20,71 +18,63 @@ namespace USSDMiddleware.Core.Utilities
             _httpClient = httpClient;
         }
 
-        public async Task<Optional<string>> Get(string url, IDictionary<string, string> headers)
+        public async Task<object> Get(string url, IDictionary<string, string>? headers)
         {
-            try
+            if (headers != null)
             {
-                if (headers != null && headers.Any())
+                foreach (var header in headers)
                 {
-                    foreach (var header in headers)
-                    {
-                        _httpClient.DefaultRequestHeaders.Add(header.Key, header.Value);
-                    }
+                    _httpClient.DefaultRequestHeaders.Add(header.Key, header.Value);
                 }
+            }
 
-                HttpResponseMessage response = await _httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-                return Optional.Of(await response.Content.ReadAsStringAsync());
-            }
-            catch (HttpRequestException httpEx)
+            var response = await _httpClient.GetAsync(url);
+            var rsp = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
             {
-                _log.LogError("HTTP Request error: {HttpExMessage}", httpEx.Message);
-                return Optional.Of(httpEx.Message);
+                return JsonConvert.DeserializeObject<GetUserByAccountNumberResponse>(rsp);
             }
-            catch (TaskCanceledException timeoutEx)
+            else
             {
-                Console.WriteLine($"Request timed out: {timeoutEx.Message}");
-                return Optional.Empty;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"An error occurred: {ex.Message}");
-                return Optional.Empty;
+                return rsp;
             }
         }
 
-        public async Task<Optional<string>> Post(string url, IDictionary<string, string> headers, string jsonContent)
+        public async Task<T> Get<T>(string url, IDictionary<string, string>? headers)
         {
-            try
+            if (headers != null)
             {
-                if (headers.Any())
+                foreach (var header in headers)
                 {
-                    foreach (var header in headers)
-                    {
-                        _httpClient.DefaultRequestHeaders.Add(header.Key, header.Value);
-                    }
+                    _httpClient.DefaultRequestHeaders.Add(header.Key, header.Value);
                 }
+            }
 
-                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-                HttpResponseMessage response = await _httpClient.PostAsync(url, content);
-                response.EnsureSuccessStatusCode();
-                return Optional.Of(await response.Content.ReadAsStringAsync());
-            }
-            catch (HttpRequestException httpEx)
+            var response = await _httpClient.GetAsync(url);
+            var rsp = await response.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<T>(rsp);
+            // _httpClient.Dispose();
+
+            return result;
+        }
+
+        public async Task<T> Post<T>(string url, IDictionary<string, string>? headers, string jsonContent)
+        {
+            if (headers != null)
             {
-                _log.LogError("HTTP Request error: {HttpExMessage}", httpEx.Message);
-                return Optional.Of(httpEx.Message);
+                foreach (var header in headers)
+                {
+                    _httpClient.DefaultRequestHeaders.Add(header.Key, header.Value);
+                }
             }
-            catch (TaskCanceledException timeoutEx)
-            {
-                Console.WriteLine($"Request timed out: {timeoutEx.Message}");
-                return Optional.Empty;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"An error occurred: {ex.Message}");
-                return Optional.Empty;
-            }
+
+            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+            HttpResponseMessage response = await _httpClient.PostAsync(url, content);
+            string rsp = await response.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<T>(rsp);
+            // _httpClient.Dispose();
+            return result;
         }
 
         public async Task<T> Post<T>(string url, HttpContent content, string token = null)

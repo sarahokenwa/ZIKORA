@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using USSDMiddleware.Core;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Models;
-using USSDMiddleware.Core.Models.Providers.Zikora;
 using USSDMiddleware.Core.Models.Request;
+using USSDMiddleware.Core.Models.ResponseModel;
 
 namespace USSDMiddleware.Api.Controllers;
 
@@ -25,7 +25,7 @@ public class BvnController : ControllerBase
     {
         var result = await _bvnManager.GetBvnInfo(request);
 
-        return Ok(new Response<BvnInfoResponse>()
+        return Ok(new Response<GetBvnInfoResponse>()
         {
             Code = Constants.ResponseCodes.Successful,
             Succeeded = true,

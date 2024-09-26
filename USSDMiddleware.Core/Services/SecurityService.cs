@@ -63,7 +63,7 @@ namespace USSDMiddleware.Core.Services
             {
                 UserName = model.Email,
                 Password = model.Password,
-                ClientType = "User",
+                ClientType = "Client",
                 ClientCode = _configuration["Identity:ClientId"]
             });
 

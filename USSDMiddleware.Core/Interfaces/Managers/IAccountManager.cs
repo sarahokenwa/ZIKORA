@@ -1,10 +1,16 @@
-﻿using USSDMiddleware.Core.Models.Request;
+﻿using USSDMiddleware.Core.Models.Accounts;
+using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 
 namespace USSDMiddleware.Core.Interfaces.Managers
 {
     public interface IAccountManager
     {
-        Task<AccountCreationResponse> CreateAccount(CreateAccountRequest newUser);
+        Task<CreateAccountResponse> CreateAccount(CreateAccountRequestExtension newUser);
+        Task<NameEnquiryResponse> NameEnquiry(NameEnquiryRequest request);
+        Task<BlockAccountResponse> BlockAccount(BlockAccountRequest request);
+        Task<BlockAccountResponse> DeactivatePND(BlockAccountRequest request);
+        Task<BlockAccountResponse> VerifyPNDStatus(BlockAccountRequest request);
+        Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(AccountValidationRequest request);
     }
 }
