@@ -136,7 +136,10 @@ namespace USSDMiddleware.Core.Managers
                     var accountBalanceResponse = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.AccountNumber });
                     if (decimal.TryParse(accountBalanceResponse.AvailableBalance, out decimal availableBalance))
                     {
-                        if (availableBalance < request.Amount)
+                        //Convert availablebalance from naira to Kobo
+                        decimal availableBalanceInKobo = availableBalance * 100;
+
+                        if (availableBalanceInKobo < request.Amount)
                         {
                             return new InstantPayOutResponse
                             {
