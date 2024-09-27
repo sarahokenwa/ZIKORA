@@ -39,19 +39,8 @@ namespace USSDMiddleware.Infrastructure.Repositories
             catch (Exception ex)
             {
                 _log.LogError(ex, $"Failed to save the new user with phoneNumber: {user.PhoneNumber}");
-                 throw;
+                return null;
             }
         }
-
-        //public async Task<User> GetUserByAccountNumber(string accountNumber)
-        //{
-        //    var user = await _dbContext.Set<User>().Where(a=>a.AccountNumber == accountNumber).FirstOrDefaultAsync();
-        //    if(user == null)
-        //    {
-        //        throw new NotFoundException("User not found.");
-        //    }
-        //    return user;
-        //}
-
     }
 }
