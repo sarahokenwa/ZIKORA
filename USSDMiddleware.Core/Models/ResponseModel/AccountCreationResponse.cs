@@ -7,6 +7,10 @@ public class AccountCreationResponse
     public string? AccountNumber { get; set; }
     public string? FullName { get; set; }
 
+    public AccountCreationResponse()
+    {
+    }
+
     public AccountCreationResponse(string? reference, string? customerId, string? accountNumber, string? fullName = null)
     {
         Reference = reference;

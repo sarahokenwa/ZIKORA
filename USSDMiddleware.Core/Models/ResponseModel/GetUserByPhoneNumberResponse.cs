@@ -10,6 +10,7 @@ public class GetUserByPhoneNumberResponse
     public string PhoneNumber { get; set; }
     public string BankVerificationNumber { get; set; }
     public string DateOfBirth { get; set; }
+    public string Message { get; set; }
 }
 
 public class UserPhoneNumberDetails

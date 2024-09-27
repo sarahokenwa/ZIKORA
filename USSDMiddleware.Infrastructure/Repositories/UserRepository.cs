@@ -38,7 +38,7 @@ namespace USSDMiddleware.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "Failed to save the new user with phoneNumber: {SerializeObject}", user.PhoneNumber);
+                _log.LogError(ex, $"Failed to save the new user with phoneNumber: {user.PhoneNumber}");
                  throw;
             }
         }
