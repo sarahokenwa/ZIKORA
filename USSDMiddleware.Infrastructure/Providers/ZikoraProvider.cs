@@ -128,14 +128,12 @@ namespace USSDMiddleware.Infrastructure.Providers
                 }
                 return null;
             }
-
             catch (Exception ex)
             {
                 _log.LogError(ex, $"An error occurred while processing accounts retrieval: {ex.Message}");
                 return null;
             }
         }
-
 
         public async Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber)
         {
@@ -161,7 +159,6 @@ namespace USSDMiddleware.Infrastructure.Providers
                      .With(g => g.Name = null)
                      .Build();
             }
-
             return null;
         }
         
@@ -178,8 +175,13 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var isSuccess = rsp["IsSuccessful"]!.Value<bool>();
                 if (!isSuccess)
                 {
-                    return null;
+                    var errorMessage = rsp["Message"]?.Value<string>() ?? "Account creation failed.";
+                    _log.LogWarning($"Account creation failed: {errorMessage}");
 
+                    return new AccountCreationResponse
+                    {
+                        Message = errorMessage  
+                    };
                 }
 
                 var messageToken = rsp["Message"];
@@ -191,13 +193,13 @@ namespace USSDMiddleware.Infrastructure.Providers
             catch (Exception ex)
             {
                 _log.LogError(ex, $"An error occurred while trying to create account!: {ex.Message}");
-                return null;
+                return new AccountCreationResponse
+                {
+                    Message = "Account creation failed."
+                }; 
             }
-
             return null;
-
         }
-
 
         public async Task<BvnInfoResponse> GetBvnInfo(string bvn, string phoneNo)
         {
@@ -257,8 +259,11 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while checking account balance");
-                throw new NotSuccessfulException("Failed to retrieve account balance");
+                _log.LogError(ex, $"An error occurred while retrieving account balance: {ex.Message}");
+                return new BalanceEnquiryResponse
+                {
+                    Message = "Failed to retrieve account balance."
+                };
             }
         }
 
@@ -832,6 +837,7 @@ namespace USSDMiddleware.Infrastructure.Providers
         {
             try
             {
+                
                 var authenticationKey = _apiOptions.Zikora.Token;
 
                 var localFundsTransferUrl =
@@ -875,7 +881,11 @@ namespace USSDMiddleware.Infrastructure.Providers
             catch (Exception ex)
             {
                 _log.LogError($"An error occurred while performing intra-bank transfer.{ex.Message}");
-                throw new NotSuccessfulException($"Failed to perform intra-bank transfer");
+                return new IntraBankTransferResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Intrabank transfer failed.",
+                };
             }
         }
 
