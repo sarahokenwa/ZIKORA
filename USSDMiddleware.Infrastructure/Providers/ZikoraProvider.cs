@@ -69,32 +69,73 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation($"Get User By Phone number Url: {url}");
 
-                var users = await _httpService.Get<ZikoraGetUserByPhoneNumberResponse[]>(url, BuildHeader());
+                var users = await _httpService.Get<object>(url, BuildHeader());
 
-                if (users == null || users.Length == 0)
+                JObject userObject = null;
+
+                if (users is JArray usersArray && usersArray.Count > 0)
                 {
-                    _log.LogError("No customer found in the response");
-                    return null;
+                    var response = usersArray[0].ToObject<ZikoraGetUserByPhoneNumberResponse>();
+                    return Builder<GetUserByPhoneNumberResponse>.CreateNew()
+                      .With(g => g.PhoneNumber = response.PhoneNumber)
+                      .With(g => g.Address = response.Address)
+                      .With(g => g.Email = response.Email)
+                      .With(g => g.CustomerID = response.CustomerID)
+                      .With(g => g.LastName = response.LastName)
+                      .With(g => g.OtherNames = response.OtherNames)
+                      .With(g => g.BankVerificationNumber = response.BankVerificationNumber)
+                      .With(g => g.DateOfBirth = response.DateOfBirth)
+                      .Build();
                 }
+                
 
-                var user = users[0];
-                return Builder<GetUserByPhoneNumberResponse>.CreateNew()
-                    .With(g => g.PhoneNumber = user.PhoneNumber)
-                    .With(g => g.Address = user.Address)
-                    .With(g => g.Email = user.Email)
-                    .With(g => g.CustomerID = user.CustomerID)
-                    .With(g => g.LastName = user.LastName)
-                    .With(g => g.OtherNames = user.OtherNames)
-                    .With(g => g.BankVerificationNumber = user.BankVerificationNumber)
-                    .With(g => g.DateOfBirth = user.DateOfBirth)
-                    .Build();
+                if (users is JObject obj)
+                {
+                    userObject = obj; 
+
+                    if (userObject["IsSuccessful"] != null)
+                    {
+                        if (userObject["IsSuccessful"]?.Value<bool>() == false)
+                        {
+                            var errorMessage = userObject["Message"]?.ToString() ?? "No customer found.";
+                            _log.LogWarning($"Error: {errorMessage}");
+
+                            return new GetUserByPhoneNumberResponse
+                            {
+                                CustomerID = null,
+                                Message = errorMessage
+                            };
+                        }
+                        
+                    }
+                    else
+                    {
+                        var user = userObject.ToObject<ZikoraGetUserByPhoneNumberResponse>();
+                        if (user != null && !string.IsNullOrEmpty(user.CustomerID))
+                        {
+                            return Builder<GetUserByPhoneNumberResponse>.CreateNew()
+                                .With(g => g.PhoneNumber = user.PhoneNumber)
+                                .With(g => g.Address = user.Address)
+                                .With(g => g.Email = user.Email)
+                                .With(g => g.CustomerID = user.CustomerID)
+                                .With(g => g.LastName = user.LastName)
+                                .With(g => g.OtherNames = user.OtherNames)
+                                .With(g => g.BankVerificationNumber = user.BankVerificationNumber)
+                                .With(g => g.DateOfBirth = user.DateOfBirth)
+                                .Build();
+                        }
+                    }
+                }
+                return null;
             }
+
             catch (Exception ex)
             {
                 _log.LogError(ex, $"An error occurred while processing accounts retrieval: {ex.Message}");
                 return null;
             }
         }
+
 
         public async Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber)
         {
@@ -316,8 +357,8 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while debiting customer account: {debitResult.ResponseMessage}");
-                throw new NotSuccessfulException("Failed to debit customer account: {debitResult.ResponseMessage}");
+                _log.LogError(ex, $"An error occurred while debiting customer account: {ex.Message}");
+                throw new NotSuccessfulException("Failed to debit customer account");
             }
         }
 
@@ -833,8 +874,8 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
             catch (Exception ex)
             {
-                _log.LogError("An error occurred while performing intra-bank transfer.", ex);
-                throw new NotSuccessfulException($"Failed to perform intra-bank transfer: {ex.Message}");
+                _log.LogError($"An error occurred while performing intra-bank transfer.{ex.Message}");
+                throw new NotSuccessfulException($"Failed to perform intra-bank transfer");
             }
         }
 

@@ -9,6 +9,7 @@ using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Models.Accounts;
+using Microsoft.Extensions.Logging;
 
 namespace USSDMiddleware.Core.Managers
 {
@@ -17,17 +18,20 @@ namespace USSDMiddleware.Core.Managers
         private readonly IUserRepository _userRepository;
         private readonly UssdProviderSelector _providerSelector;
         private readonly IProviderManager _providerManager;
+        private readonly ILogger<UserManager> _log;
 
         public UserManager(
             IUserRepository userRepository,
             UssdProviderSelector providerSelector,
-            IProviderManager providerManager
+            IProviderManager providerManager,
+            ILogger<UserManager> log
            )
 
         {
             _userRepository = userRepository;
             _providerSelector = providerSelector;
             _providerManager = providerManager;
+            _log = log;
         }
 
         public async Task<CreateUserResponse> CreateUser(CreateUserRequest request)
@@ -51,7 +55,23 @@ namespace USSDMiddleware.Core.Managers
             }
 
             byte[] salt = Utility.GetSalt();
+            string saltBase64 = Convert.ToBase64String(salt);
+            _log.LogInformation($"Generated Salt (Base64): {saltBase64}");
+
+            if (salt == null || salt.Length == 0)
+            {
+                throw new InvalidOperationException("Salt generation failed. The byte array is null or empty.");
+            }
+
             var serviceRsp = await provider.GetUserByPhoneNumber(request.PhoneNumber);
+            if (serviceRsp.Message?.Contains("No customer found with PhoneNumber") == true)
+            {
+                return new CreateUserResponse
+                {
+                    message = $"No customer found with PhoneNumber: {request.PhoneNumber}."
+                };
+            }
+
             var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
                 .With(u => u.PhoneNumber = request.PhoneNumber)
                 .With(u => u.Address = serviceRsp.Address)
