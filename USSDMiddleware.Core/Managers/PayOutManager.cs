@@ -133,7 +133,30 @@ namespace USSDMiddleware.Core.Managers
                 }
                 else 
                 {
+                    var accountBalanceResponse = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.AccountNumber });
+                    if (decimal.TryParse(accountBalanceResponse.AvailableBalance, out decimal availableBalance))
+                    {
+                        //Convert availablebalance from naira to Kobo
+                        decimal availableBalanceInKobo = availableBalance * 100;
 
+                        if (availableBalanceInKobo < request.Amount)
+                        {
+                            return new InstantPayOutResponse
+                            {
+                                Message = "Insufficient account balance.",
+                                Succeeded = false
+                            };
+                        }
+                        else
+                        {
+                            return new InstantPayOutResponse
+                            {
+                                Message = "Unable to parse account balance. Please try again.",
+                                Succeeded = false
+                            };
+                        }
+                    }
+                    
                     CustomerDebit customerDebit = new CustomerDebit
                     {
                         Amount = request.Amount,
@@ -400,8 +423,12 @@ namespace USSDMiddleware.Core.Managers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while trying to make instant payment.");
-                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Instant payout failed.");
+                _log.LogError(ex, $"An error occurred while trying to make instant payment. {ex.Message}");
+                return new IntraBankTransferResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Intrabank transfer failed."
+                };
             }
         }
 
