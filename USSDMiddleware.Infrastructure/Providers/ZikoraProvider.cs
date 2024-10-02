@@ -351,7 +351,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 if (!debitResult.IsSuccessful)
                 {
                     _log.LogError($"Debit was not successful: {debitResult.ResponseMessage}");
-                    throw new NotSuccessfulException($"Failed to debit customer account: {debitResult.ResponseMessage}");
+                    return new DebitCustomerAccountResponse {
+                        IsSuccessful = false,
+                        ResponseMessage= debitResult.ResponseMessage,
+                    };
                 }
 
                 _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
@@ -363,7 +366,11 @@ namespace USSDMiddleware.Infrastructure.Providers
             catch (Exception ex)
             {
                 _log.LogError(ex, $"An error occurred while debiting customer account: {ex.Message}");
-                throw new NotSuccessfulException("Failed to debit customer account");
+                return new DebitCustomerAccountResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Failed to debit customer account."
+                };
             }
         }
 

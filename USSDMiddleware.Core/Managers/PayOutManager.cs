@@ -127,11 +127,11 @@ namespace USSDMiddleware.Core.Managers
                     return new InstantPayOutResponse
                     {
                         Message = "The pin entered is incorrect.",
-                        Succeeded = false 
+                        Succeeded = false
                     };
 
                 }
-                else 
+                else
                 {
                     var accountBalanceResponse = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.AccountNumber });
                     if (decimal.TryParse(accountBalanceResponse.AvailableBalance, out decimal availableBalance))
@@ -156,7 +156,7 @@ namespace USSDMiddleware.Core.Managers
                             };
                         }
                     }
-                    
+
                     CustomerDebit customerDebit = new CustomerDebit
                     {
                         Amount = request.Amount,
@@ -386,11 +386,36 @@ namespace USSDMiddleware.Core.Managers
                 var transactionPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
                 if (!transactionPin)
                 {
-                    return new IntraBankTransferResponse { 
-                        ResponseMessage = "The pin entered is incorrect.", 
+                    return new IntraBankTransferResponse
+                    {
+                        ResponseMessage = "The pin entered is incorrect.",
                         IsSuccessful = false
                     };
 
+                }
+
+                var accountBalanceResponse = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.FromAccountNumber });
+                if (decimal.TryParse(accountBalanceResponse.AvailableBalance, out decimal availableBalance))
+                {
+                    //Convert availablebalance from naira to Kobo
+                    decimal availableBalanceInKobo = availableBalance * 100;
+
+                    if (availableBalanceInKobo < request.Amount)
+                    {
+                        return new IntraBankTransferResponse
+                        {
+                            ResponseMessage = "Insufficient account balance.",
+                            IsSuccessful = false
+                        };
+                    }
+                    else
+                    {
+                        return new IntraBankTransferResponse
+                        {
+                            ResponseMessage = "Unable to parse account balance. Please try again.",
+                            IsSuccessful = false
+                        };
+                    }
                 }
 
                 var intraBankTransfer = new IntraBankTransfer
