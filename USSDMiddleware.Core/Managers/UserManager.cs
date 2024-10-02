@@ -36,7 +36,7 @@ namespace USSDMiddleware.Core.Managers
 
         public async Task<CreateUserResponse> CreateUser(CreateUserRequest request)
         {
-            ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
+            request.PhoneNumber = ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
                 .With(v => v.PhoneNumber = request.PhoneNumber)
                 .Build());
 

@@ -72,7 +72,7 @@ namespace USSDMiddleware.Core.Managers
                 var user = await _userRepository.GetByPhoneNumber(validationLog.PhoneNumber, providerId);
                 if (user.HasValue)
                 {
-                    return new CreateAccountResponse(request.ValidationReference, validationLog.PhoneNumber, null);
+                    return new CreateAccountResponse(request.ValidationReference, validationLog.PhoneNumber, null, "User is already registered for USSD.");
 
                 }
 
