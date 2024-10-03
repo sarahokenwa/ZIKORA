@@ -58,7 +58,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
             }
 
-            return new PhoneValidationResponse(false, false, "Phone number does not exist!");
+            return new PhoneValidationResponse(false, true, "Phone number does not exist!");
         }
 
         public async Task<GetUserByPhoneNumberResponse> GetUserByPhoneNumber(string phoneNumber)
