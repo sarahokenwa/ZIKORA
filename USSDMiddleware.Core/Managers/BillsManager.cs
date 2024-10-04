@@ -119,7 +119,7 @@ namespace USSDMiddleware.Core.Managers
                 email = requestModel.customerEmail,
                 itemCode = requestModel.itemCode,
                 phone = requestModel.customerPhoneNumber,
-                phoneValidation = false,
+                phoneValidation = requestModel.shouldVerifyCustomer,
             };
             return await _cyberPayProvider.Validate(request);
         }
@@ -128,6 +128,7 @@ namespace USSDMiddleware.Core.Managers
         {
             try
             {
+                requestModel.Amount = requestModel.Amount * 100; //convert to kobo
                 var response = new VendResponse();
                 var validationResult = ValidateRequest(requestModel);
                 if (!validationResult.Succeeded)
