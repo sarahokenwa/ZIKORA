@@ -1,7 +1,6 @@
 ﻿namespace USSDMiddleware.Core.Models.Bills
 {
 
-
     public class ValidateRequestModel
     {
         public string itemCode { get; set; }

@@ -93,7 +93,7 @@ namespace USSDMiddleware.Core.Managers
 
         public async Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request)
         {
-            ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
+            request.PhoneNumber = ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
                 .With(v => v.PhoneNumber = request.PhoneNumber)
                 .Build());
 

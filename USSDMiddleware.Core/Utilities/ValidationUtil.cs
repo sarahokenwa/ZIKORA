@@ -34,8 +34,26 @@ public class ValidationUtil
         {
             throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST, $"Phone number parsing failed");
         }
+    }
 
-        throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Phone number is invalid!");
+    private static bool IsValidBvn(string? bvn)
+    {
+        // Check length
+        if (bvn.Length != 11)
+        {
+            return false;
+        }
+
+        // Check if all characters are digits
+        for (int i = 0; i < bvn.Length; i++)
+        {
+            if (Char.IsDigit(bvn[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 
@@ -48,4 +66,7 @@ public static class StringExtensions
         return source.Substring(source.Length - tailLength);
     }
 }
+
+
+
 
