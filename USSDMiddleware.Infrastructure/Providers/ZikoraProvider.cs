@@ -50,15 +50,17 @@ namespace USSDMiddleware.Infrastructure.Providers
                 {
                     return new PhoneValidationResponse(false, true, "Phone number exists!");
                 }
+                else
+                {
+                    return new PhoneValidationResponse(false, false, "Phone number does not exist!");
+                }
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while trying to validate customer phone!");
+                _log.LogError(ex, $"An error occurred while trying to validate customer phone: {ex.Message}");
                 return new PhoneValidationResponse(false, false, "Phone number validation failed.");
 
             }
-
-            return new PhoneValidationResponse(false, true, "Phone number does not exist!");
         }
 
         public async Task<GetUserByPhoneNumberResponse> GetUserByPhoneNumber(string phoneNumber)
@@ -486,13 +488,25 @@ namespace USSDMiddleware.Infrastructure.Providers
                 else
                 {
                     _log.LogError($"Failed to query transaction status: {statusQueryResponseContent.ResponseMessage} ");
-                    throw new NotSuccessfulException($"Failed to query transaction status: {statusQueryResponseContent.ResponseMessage}");
+                    return new RequeryResponse
+                    {
+                        IsSuccessful = statusQueryResponseContent.IsSuccessful,
+                        ResponseMessage = statusQueryResponseContent.ResponseMessage,
+                        ResponseCode = statusQueryResponseContent.ResponseCode,
+                        Reference = statusQueryResponseContent.Reference,
+                        Status = statusQueryResponseContent.Status,
+
+                    };
                 }
             }
             catch (Exception ex)
             {
                 _log.LogError($"Requery was unsuccessful: {ex.Message}");
-                throw new OperationFailedException($"Requery Failed: {ex.Message}", ex);
+                return new RequeryResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Requery Failed",
+                };
             }
         }
 
@@ -536,7 +550,11 @@ namespace USSDMiddleware.Infrastructure.Providers
             catch (Exception ex)
             {
                 _log.LogError($"Account blocking was unsuccessful: {ex.Message}");
-                throw new OperationFailedException($"Failed to block account:{ex.Message}", ex);
+                return new BlockAccountResponse
+                {
+                    RequestStatus = false,
+                    ResponseDescription = "Failed to block account."
+                };
             }
         }
 

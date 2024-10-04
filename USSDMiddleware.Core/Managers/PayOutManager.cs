@@ -12,6 +12,7 @@ using USSDMiddleware.Core.Models.Bills;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Services;
+using static USSDMiddleware.Core.Models.ResponseModel.ZikoraGetUserByPhoneNumberResponse;
 
 namespace USSDMiddleware.Core.Managers
 {
@@ -133,7 +134,7 @@ namespace USSDMiddleware.Core.Managers
                 }
                 else
                 {
-                    var accountBalanceResponse = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.AccountNumber });
+                    var accountBalanceResponse = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.SenderAccountNumber });
                     if (decimal.TryParse(accountBalanceResponse.AvailableBalance, out decimal availableBalance))
                     {
                         //Convert availablebalance from naira to Kobo
@@ -144,14 +145,6 @@ namespace USSDMiddleware.Core.Managers
                             return new InstantPayOutResponse
                             {
                                 Message = "Insufficient account balance.",
-                                Succeeded = false
-                            };
-                        }
-                        else
-                        {
-                            return new InstantPayOutResponse
-                            {
-                                Message = "Unable to parse account balance. Please try again.",
                                 Succeeded = false
                             };
                         }
@@ -205,14 +198,19 @@ namespace USSDMiddleware.Core.Managers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while trying to make instant payment.");
-                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Instant payout failed.");
+                _log.LogError(ex, $"An error occurred while trying to make instant payment: {ex.Message}");
+                return new InstantPayOutResponse
+                {
+                    Message = "Instant payout failed.",
+                    Succeeded = false
+                };
             }
         }
 
         public async Task<InstantPayOutResponse> InstantPayOutBill(DebitCustomerAccountResponse debitResponse, CustomerDebit logdebitRequest,
                                                                    InstantPayOutRequestExtension request, string merchantReference)
         {
+
             var provider = _providerSelector.GetProvider(request.Provider);
             var providerId = await provider.GetProviderId(_providerManager);
 
@@ -226,8 +224,9 @@ namespace USSDMiddleware.Core.Managers
             }
             ReQueryRequest requeryPayload = new ReQueryRequest
             {
+
                 RetrievalReference = merchantReference,
-                Amount = request.Amount
+                Amount = request.Amount * 100 //Convert amount to kobo
             };
 
             var requery = await provider.StatusQuery(requeryPayload);
@@ -242,6 +241,7 @@ namespace USSDMiddleware.Core.Managers
 
             FundTransfer logInstantPayOut = await LogInstantPayment(request, merchantReference, providerId);
 
+            request.Amount = request.Amount * 100; // Convert to kobo
 
             var instantPayOut = await _payOutService.InstantPayOut(request, merchantReference);
             if (instantPayOut.Succeeded && instantPayOut.Data != null)
