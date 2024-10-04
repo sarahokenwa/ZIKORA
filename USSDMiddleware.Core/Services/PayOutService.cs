@@ -57,6 +57,8 @@ namespace USSDMiddleware.Core.Services
                 {
                     _log.LogInformation($"Name Enquiry Response: {JsonConvert.SerializeObject(nameEnquiryResponse)}");
                     throw new NotSuccessfulException($"Name enquiry failed: {JsonConvert.SerializeObject(nameEnquiryResponse)}");
+                   
+
                 }
             }
             catch (Exception ex)
@@ -121,13 +123,23 @@ namespace USSDMiddleware.Core.Services
                 else
                 {
                     _log.LogInformation($"Instant PayOut Response: {instantPayOutResponse.Message}");
-                    throw new NotSuccessfulException($"Instant payout failed: {instantPayOutResponse.Message}");
+                    //throw new NotSuccessfulException($"Instant payout failed: {instantPayOutResponse.Message}");
+                    return new InstantPayOutResponse
+                    {
+                        Succeeded = false,
+                        Message = instantPayOutResponse.Message,
+                    };
                 }
             }
             catch (Exception ex)
             {
                 _log.LogError($"An error occurred during instant payout: {ex.Message}");
-                throw new OperationFailedException("Failed to complete instant payout.", ex);
+                //throw new OperationFailedException("Failed to complete instant payout.", ex);
+                return new InstantPayOutResponse
+                {
+                    Succeeded = false,
+                    Message = "Instant payout failed.",
+                };
             }
         }
 
@@ -151,7 +163,12 @@ namespace USSDMiddleware.Core.Services
             catch (Exception ex)
             {
                 _log.LogError(ex, ex.InnerException?.Message ?? ex.Message);
-                throw new NotSuccessfulException("Failed to complete requery.");
+                // throw new NotSuccessfulException("Failed to complete requery.");
+                return new RequeryResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Requery failed."
+                };
                 
             }
         }
@@ -176,7 +193,12 @@ namespace USSDMiddleware.Core.Services
             catch (Exception ex)
             {
                 _log.LogError(ex, ex.InnerException?.Message ?? ex.Message);
-                throw new NotSuccessfulException("Failed to retrieve banks.");
+                //throw new NotSuccessfulException("Failed to retrieve banks.");
+                return new BankResponse
+                {
+                    Succeeded = false,
+                    Data = null
+                };
             }
         }
 
