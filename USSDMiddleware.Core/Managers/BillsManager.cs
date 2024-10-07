@@ -119,7 +119,7 @@ namespace USSDMiddleware.Core.Managers
                 email = requestModel.customerEmail,
                 itemCode = requestModel.itemCode,
                 phone = requestModel.customerPhoneNumber,
-                phoneValidation = requestModel.shouldVerifyCustomer,
+                phoneValidation = requestModel.phoneValidation,
             };
             return await _cyberPayProvider.Validate(request);
         }
@@ -244,7 +244,7 @@ namespace USSDMiddleware.Core.Managers
                 itemCode = requestModel.PaymentCode,
                 customerId = requestModel.CustomerId,
                 customerPhoneNumber = requestModel.CustomerMobile,
-                shouldVerifyCustomer = true,
+                phoneValidation = true,
                 customerEmail = userDetail.Value.Email,
                 customerName = userDetail.Value.CustomerName,
                 amount = requestModel.Amount,
