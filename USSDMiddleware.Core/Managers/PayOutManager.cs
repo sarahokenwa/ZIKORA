@@ -226,7 +226,8 @@ namespace USSDMiddleware.Core.Managers
             {
 
                 RetrievalReference = merchantReference,
-                Amount = request.Amount * 100 //Convert amount to kobo
+                Amount = request.Amount 
+                //Amount = request.Amount * 100 //Convert amount to kobo
             };
 
             var requery = await provider.StatusQuery(requeryPayload);
@@ -241,7 +242,7 @@ namespace USSDMiddleware.Core.Managers
 
             FundTransfer logInstantPayOut = await LogInstantPayment(request, merchantReference, providerId);
 
-            request.Amount = request.Amount * 100; // Convert to kobo
+           // request.Amount = request.Amount * 100; // Convert to kobo
 
             var instantPayOut = await _payOutService.InstantPayOut(request, merchantReference);
             if (instantPayOut.Succeeded && instantPayOut.Data != null)
@@ -405,14 +406,6 @@ namespace USSDMiddleware.Core.Managers
                         return new IntraBankTransferResponse
                         {
                             ResponseMessage = "Insufficient account balance.",
-                            IsSuccessful = false
-                        };
-                    }
-                    else
-                    {
-                        return new IntraBankTransferResponse
-                        {
-                            ResponseMessage = "Unable to parse account balance. Please try again.",
                             IsSuccessful = false
                         };
                     }
