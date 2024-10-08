@@ -166,7 +166,7 @@ namespace USSDMiddleware.Core.Managers
                     {
                         RetrievalReference = settings.RetrievalReference,
                         AccountNumber = request.SenderAccountNumber,
-                        Amount = request.Amount.ToString(),
+                        Amount = request.Amount.ToString(), //Amount is in kobo.
                         Narration = $"Debit Customer account to {request.BeneficiaryName}",
                     };
 
