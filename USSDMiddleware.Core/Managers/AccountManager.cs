@@ -86,7 +86,7 @@ namespace USSDMiddleware.Core.Managers
                 {
                     return new CreateAccountResponse
                     {
-                        Message = "BVN Error: Customer BVN must be unique, the BVN you entered already exist."
+                        Message = "Account already exist."
                     };
                 }
 
@@ -266,7 +266,13 @@ namespace USSDMiddleware.Core.Managers
             catch (Exception ex)
             {
                 _log.LogError("An error occurred while trying to block account.", ex);
-                throw new NotSuccessfulException(ex.Message);
+                //throw new NotSuccessfulException(ex.Message);
+                return new BlockAccountResponse
+                {
+                    RequestStatus = false,
+                    ResponseDescription = "Failed to block account.",
+                    ResponseStatus = "Failed"
+                };
             }
         }
 
