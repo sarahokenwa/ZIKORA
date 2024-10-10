@@ -218,7 +218,11 @@ namespace USSDMiddleware.Infrastructure.Providers
             _log.LogInformation($"GetBvnInfo Request Body: {jsonContent}");
             if (!bvnInfoResponse.isBvnValid)
             {
-                throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Bvn is invalid");
+                return new BvnInfoResponse()
+                {
+                    RequestStatus = false,
+                    ResponseMessage = bvnInfoResponse.ResponseMessage,
+                };
             }
 
             //if (!bvnInfoResponse.bvnDetails.phoneNumber.Equals(phoneNo))
@@ -230,7 +234,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             {
 
                 throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED,
-                    "An unable to validate your bvn at the moment, try again later!");
+                    "Unable to validate your bvn at the moment, try again later!");
             }
             return bvnInfoResponse;
         }
@@ -350,10 +354,11 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
 
-                if (!debitResult.IsSuccessful)
+                if (!debitResult.IsSuccessful || !debitResult.ResponseCode.Equals("00"))
                 {
                     _log.LogError($"Debit was not successful: {debitResult.ResponseMessage}");
-                    return new DebitCustomerAccountResponse {
+                    return new DebitCustomerAccountResponse 
+                    {
                         IsSuccessful = false,
                         ResponseMessage= debitResult.ResponseMessage,
                     };
