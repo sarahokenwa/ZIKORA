@@ -49,7 +49,7 @@ namespace USSDMiddleware.Core.Managers
             {
                 return new CreateUserResponse
                 {
-                    userId = null, 
+                    userId = null,
                     message = $"User with phone number {request.PhoneNumber} already exists."
                 };
             }
@@ -144,15 +144,22 @@ namespace USSDMiddleware.Core.Managers
             var provider = _providerSelector.GetProvider(request.Provider);
             var serviceRsp = await provider.GetAccountsByPhoneNumber(request.PhoneNumber);
 
-            if (serviceRsp.Count > 0)
+            if (serviceRsp.Count > 0 && serviceRsp.Any(x => x.AccountNumber != null))
             {
                 return serviceRsp.Select(x => new UserAccountNumber
                 {
-                    AccountNumber = x.AccountNumber
+                    AccountNumber = x.AccountNumber,
+                    Message = "Account retrieved successfully."
                 }).ToList();
 
             }
-            return null;
+            return new List<UserAccountNumber>
+    {
+        new UserAccountNumber
+        {
+            Message = serviceRsp.Count > 0 ? serviceRsp.First().Message : $"No customer found with phone number {request.PhoneNumber}"
+        }
+    };
         }
 
         public async Task<AccountBalanceEnquiry> GetAccountBalance(AccountRequest request)
@@ -171,7 +178,7 @@ namespace USSDMiddleware.Core.Managers
                     Message = "The pin entered is incorrect",
                     Status = false,
 
-                };  
+                };
             }
 
             var serviceRsp = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.AccountNumber });
@@ -214,7 +221,7 @@ namespace USSDMiddleware.Core.Managers
             {
                 return true;
             }
-            
+
         }
     }
 }

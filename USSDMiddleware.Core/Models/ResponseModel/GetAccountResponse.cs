@@ -6,4 +6,5 @@ public class GetAccountResponse
     public string AccountType { get; set; }
     public string AccountStatus { get; set; }
     public string AccessLevel { get; set; }
+    public string Message { get; set; }
 }

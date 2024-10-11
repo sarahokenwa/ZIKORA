@@ -8,6 +8,7 @@ namespace USSDMiddleware.Core.Models.Accounts
 {
     public class UserAccountNumber
     {
-        public string AccountNumber { get; set; }
+        public string? AccountNumber { get; set; }
+        public string? Message { get; set; }
     }
 }

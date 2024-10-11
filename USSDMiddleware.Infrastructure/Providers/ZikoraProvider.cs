@@ -277,43 +277,101 @@ namespace USSDMiddleware.Infrastructure.Providers
         {
             try
             {
-                var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByCustomerPhoneNumber/2")}&&phoneNumber={phoneNumber}";
+                var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByCustomerPhoneNumber/2")}&phoneNumber={phoneNumber}";
 
-                _log.LogInformation($"CreateAccount Url: {url}");
+                _log.LogInformation($"Get Accounts By Phone Number URL: {url}");
 
-                var serviceRsp = await _httpService.Get<JArray>(url, BuildHeader());
+                var accountsData = await _httpService.Get<object>(url, BuildHeader());
 
-                if (serviceRsp == null)
+                List<GetAccountResponse> accountResponses = new List<GetAccountResponse>();
+
+                if (accountsData is JArray accountsArray && accountsArray.Count > 0)
                 {
-                    return null;
+                    foreach (var customer in accountsArray)
+                    {
+                        if (customer["Accounts"] is JArray accounts && accounts.Count > 0)
+                        {
+                            foreach (var account in accounts)
+                            {
+                                var accountInfo = new GetAccountResponse
+                                {
+                                    AccountNumber = account["AccountNumber"]?.ToString(),
+                                    AccountType = account["AccountType"]?.ToString(),
+                                    AccountStatus = account["AccountStatus"]?.ToString(),
+                                    AccessLevel = account["AccessLevel"]?.ToString(),
+                                    Message = "Account retrieved successfully."
+                                };
 
+                                accountResponses.Add(accountInfo);
+                            }
+                        }
+                    }
+
+                    if (accountResponses.Count == 0)
+                    {
+                        accountResponses.Add(new GetAccountResponse
+                        {
+                            Message = $"No accounts found for phone number {phoneNumber}."
+                        });
+                    }
+
+                    return accountResponses; 
                 }
 
-                if (serviceRsp == null || serviceRsp.Count == 0)
+                if (accountsData is JObject accountObject)
                 {
-                    _log.LogError("No accounts found in the response");
-                    throw new NotSuccessfulException("Failed to retrieve accounts.");
-                }
+                    if (accountObject["IsSuccessful"] != null && !accountObject["IsSuccessful"].Value<bool>())
+                    {
+                        var errorMessage = accountObject["Message"]?.ToString() ?? $"No customer found with phone number {phoneNumber}";
+                        _log.LogWarning($"Error: {errorMessage}");
 
-                var accounts = serviceRsp.SelectMany(customer => customer["Accounts"])
-                    .Select(account => new GetAccountResponse
+                        return new List<GetAccountResponse>
+                {
+                    new GetAccountResponse
+                    {
+                        Message = errorMessage
+                    }
+                };
+                    }
+
+                    var accounts = accountObject["Accounts"]?.Select(account => new GetAccountResponse
                     {
                         AccountNumber = account["AccountNumber"]?.ToString(),
                         AccountType = account["AccountType"]?.ToString(),
                         AccountStatus = account["AccountStatus"]?.ToString(),
-                        AccessLevel = account["AccessLevel"]?.ToString()
-                    })
-                    .ToList();
+                        AccessLevel = account["AccessLevel"]?.ToString(),
+                        Message = "Account retrieved successfully."
+                    }).ToList();
 
-                return accounts;
+                    if (accounts != null)
+                    {
+                        accountResponses.AddRange(accounts);
+                    }
+                }
+               
+                if (accountResponses.Count == 0)
+                {
+                    accountResponses.Add(new GetAccountResponse
+                    {
+                        Message = $"No accounts found for phone number {phoneNumber}."
+                    });
+                }
+
+                return accountResponses; 
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, $"No accounts found: {ex.Message}");
-                return null;
+                _log.LogError(ex, $"An error occurred while retrieving accounts: {ex.Message}");
+                return new List<GetAccountResponse>
+        {
+            new GetAccountResponse
+            {
+                Message = $"No customer found with phone number {phoneNumber}."
+            }
+        };
             }
         }
-
+        
         public async Task<DebitCustomerAccountResponse> DebitCustomerAccount(DebitCustomerAccountRequest model)
         {
             try
