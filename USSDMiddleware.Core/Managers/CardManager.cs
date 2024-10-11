@@ -4,10 +4,12 @@ using Microsoft.Extensions.Logging;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Repositories;
+using USSDMiddleware.Core.Models;
 using USSDMiddleware.Core.Models.Bills;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Services;
+using USSDMiddleware.Core.Utilities;
 using Card = USSDMiddleware.Core.Entities.Card;
 
 namespace USSDMiddleware.Core.Managers
@@ -44,6 +46,10 @@ namespace USSDMiddleware.Core.Managers
         {
             try
             {
+                request.PhoneNumber = ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
+               .With(v => v.PhoneNumber = request.PhoneNumber)
+               .Build());
+
                 var settings = new CardRequestExtension();
 
                 var provider = _providerSelector.GetProvider(request.Provider);
@@ -183,6 +189,10 @@ namespace USSDMiddleware.Core.Managers
         {
             try
             {
+                request.PhoneNumber = ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
+               .With(v => v.PhoneNumber = request.PhoneNumber)
+               .Build());
+
                 if (string.IsNullOrEmpty(request.AccountNumber))
                 {
                     return new FreezeCardResponse
@@ -276,7 +286,7 @@ namespace USSDMiddleware.Core.Managers
                 return new FreezeCardResponse
                 {
                     IsSuccessful = false,
-                    ResponseMessage = $"An error occurred while trying to freeze card."
+                    ResponseMessage = $"Failed to freeze card."
                 };
             }
         }
