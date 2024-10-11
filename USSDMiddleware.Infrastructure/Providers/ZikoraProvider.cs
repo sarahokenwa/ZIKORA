@@ -354,7 +354,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
 
-                if (!debitResult.IsSuccessful || !debitResult.ResponseCode.Equals("00"))
+                if (!debitResult.IsSuccessful || !debitResult.ResponseCode.Equals("00")) //Modify the response code so in a scenario whereby it isn't successful it the response message retreived from the api would be displayed.
                 {
                     _log.LogError($"Debit was not successful: {debitResult.ResponseMessage}");
                     return new DebitCustomerAccountResponse 
