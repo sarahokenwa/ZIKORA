@@ -10,6 +10,7 @@ namespace USSDMiddleware.Core.Models.Accounts
     {
         public bool Status { get; set; }
         public string Message { get; set; }
-        public string Balance { get; set; }
+        public string AvailableBalance { get; set; }
+        public string WithdrawableBalance { get; set; }
     }
 }
