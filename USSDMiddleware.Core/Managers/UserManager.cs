@@ -174,10 +174,8 @@ namespace USSDMiddleware.Core.Managers
             {
                 return new AccountBalanceEnquiry
                 {
-                    Balance = "",
                     Message = "The pin entered is incorrect",
                     Status = false,
-
                 };
             }
 
@@ -189,7 +187,8 @@ namespace USSDMiddleware.Core.Managers
                 {
                     Status = true,
                     Message = "Successful",
-                    Balance = serviceRsp.WithdrawableBalance
+                    AvailableBalance = serviceRsp.AvailableBalance,
+                    WithdrawableBalance = serviceRsp.WithdrawableBalance 
                 };
 
 
@@ -198,7 +197,6 @@ namespace USSDMiddleware.Core.Managers
             {
                 Status = false,
                 Message = "Failed to retrieve balance",
-                Balance = null
             };
 
         }

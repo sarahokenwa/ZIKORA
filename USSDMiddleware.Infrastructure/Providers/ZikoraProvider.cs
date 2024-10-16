@@ -474,6 +474,8 @@ namespace USSDMiddleware.Infrastructure.Providers
                     {
                         IsSuccessful = cardResponseContent.IsSuccessful,
                         ResponseMessage = cardResponseContent.ResponseMessage,
+                        BatchNo = cardResponseContent.BatchNo,
+                        Identifier = cardResponseContent.Identifier
                     };
 
                     _log.LogInformation($"Card result: {JsonConvert.SerializeObject(cardResult)}");
