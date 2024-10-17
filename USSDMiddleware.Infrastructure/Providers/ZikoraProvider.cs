@@ -89,11 +89,11 @@ namespace USSDMiddleware.Infrastructure.Providers
                       .With(g => g.DateOfBirth = response.DateOfBirth)
                       .Build();
                 }
-                
+
 
                 if (users is JObject obj)
                 {
-                    userObject = obj; 
+                    userObject = obj;
 
                     if (userObject["IsSuccessful"] != null)
                     {
@@ -108,7 +108,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                                 Message = errorMessage
                             };
                         }
-                        
+
                     }
                     else
                     {
@@ -163,7 +163,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
             return null;
         }
-        
+
         public async Task<AccountCreationResponse> CreateAccount(AccountCreationRequest req)
         {
             try
@@ -182,7 +182,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                     return new AccountCreationResponse
                     {
-                        Message = errorMessage  
+                        Message = errorMessage
                     };
                 }
 
@@ -198,7 +198,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 return new AccountCreationResponse
                 {
                     Message = "Account creation failed."
-                }; 
+                };
             }
             return null;
         }
@@ -315,7 +315,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                         });
                     }
 
-                    return accountResponses; 
+                    return accountResponses;
                 }
 
                 if (accountsData is JObject accountObject)
@@ -348,7 +348,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                         accountResponses.AddRange(accounts);
                     }
                 }
-               
+
                 if (accountResponses.Count == 0)
                 {
                     accountResponses.Add(new GetAccountResponse
@@ -357,7 +357,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     });
                 }
 
-                return accountResponses; 
+                return accountResponses;
             }
             catch (Exception ex)
             {
@@ -371,7 +371,7 @@ namespace USSDMiddleware.Infrastructure.Providers
         };
             }
         }
-        
+
         public async Task<DebitCustomerAccountResponse> DebitCustomerAccount(DebitCustomerAccountRequest model)
         {
             try
@@ -415,10 +415,10 @@ namespace USSDMiddleware.Infrastructure.Providers
                 if (!debitResult.IsSuccessful || !debitResult.ResponseCode.Equals("00")) //Modify the response code so in a scenario whereby it isn't successful it the response message retreived from the api would be displayed.
                 {
                     _log.LogError($"Debit was not successful: {debitResult.ResponseMessage}");
-                    return new DebitCustomerAccountResponse 
+                    return new DebitCustomerAccountResponse
                     {
                         IsSuccessful = false,
-                        ResponseMessage= debitResult.ResponseMessage,
+                        ResponseMessage = debitResult.ResponseMessage,
                     };
                 }
 
@@ -474,8 +474,6 @@ namespace USSDMiddleware.Infrastructure.Providers
                     {
                         IsSuccessful = cardResponseContent.IsSuccessful,
                         ResponseMessage = cardResponseContent.ResponseMessage,
-                        BatchNo = cardResponseContent.BatchNo,
-                        Identifier = cardResponseContent.Identifier
                     };
 
                     _log.LogInformation($"Card result: {JsonConvert.SerializeObject(cardResult)}");
@@ -927,7 +925,7 @@ namespace USSDMiddleware.Infrastructure.Providers
         {
             try
             {
-                
+
                 var authenticationKey = _apiOptions.Zikora.Token;
 
                 var localFundsTransferUrl =
