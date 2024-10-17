@@ -128,7 +128,7 @@ namespace USSDMiddleware.Core.Managers
         {
             try
             {
-                requestModel.Amount = requestModel.Amount * 100; //convert to kobo
+                requestModel.Amount = requestModel.Amount;
                 var response = new VendResponse();
                 var validationResult = ValidateRequest(requestModel);
                 if (!validationResult.Succeeded)
@@ -203,7 +203,11 @@ namespace USSDMiddleware.Core.Managers
             }
             catch (Exception ex)
             {
-                throw new NotSuccessfulException($"An error occured while processing request: {ex}");
+                return new VendResponse
+                {
+                    Succeeded = false,
+                    Message = ex.Message,
+                };
             }
         }
 
