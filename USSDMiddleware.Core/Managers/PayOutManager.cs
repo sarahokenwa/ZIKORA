@@ -105,8 +105,7 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
-                //Converting amount to kobo
-                request.Amount = request.Amount * 100;
+                request.Amount = request.Amount;
 
                 var response = new InstantPayOutResponse();
 
@@ -137,8 +136,7 @@ namespace USSDMiddleware.Core.Managers
                     var accountBalanceResponse = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.SenderAccountNumber });
                     if (decimal.TryParse(accountBalanceResponse.AvailableBalance, out decimal availableBalance))
                     {
-                        //Convert availablebalance from naira to Kobo
-                        decimal availableBalanceInKobo = availableBalance * 100;
+                        decimal availableBalanceInKobo = availableBalance;
 
                         if (availableBalanceInKobo < request.Amount)
                         {
@@ -227,7 +225,6 @@ namespace USSDMiddleware.Core.Managers
 
                 RetrievalReference = merchantReference,
                 Amount = request.Amount 
-                //Amount = request.Amount * 100 //Convert amount to kobo
             };
 
             var requery = await provider.StatusQuery(requeryPayload);
@@ -241,8 +238,6 @@ namespace USSDMiddleware.Core.Managers
             }
 
             FundTransfer logInstantPayOut = await LogInstantPayment(request, merchantReference, providerId);
-
-           // request.Amount = request.Amount * 100; // Convert to kobo
 
             var instantPayOut = await _payOutService.InstantPayOut(request, merchantReference);
             if (instantPayOut.Succeeded && instantPayOut.Data != null)
@@ -357,8 +352,7 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
-                //Converting amount to kobo
-                request.Amount = request.Amount * 100;
+                request.Amount = request.Amount;
                 var settings = new ZIKORAModelExtension();
                 settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
 
@@ -398,8 +392,7 @@ namespace USSDMiddleware.Core.Managers
                 var accountBalanceResponse = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.FromAccountNumber });
                 if (decimal.TryParse(accountBalanceResponse.AvailableBalance, out decimal availableBalance))
                 {
-                    //Convert availablebalance from naira to Kobo
-                    decimal availableBalanceInKobo = availableBalance * 100;
+                    decimal availableBalanceInKobo = availableBalance;
 
                     if (availableBalanceInKobo < request.Amount)
                     {
