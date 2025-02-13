@@ -21,7 +21,7 @@ namespace USSDMiddleware.Api.Controllers
             _accountManager = accountManager;  
         }
 
-        //For existing ZIKORA Customers not registered for USSD
+        //For Customers that don't exist on ZIKORA and haven't registered for USSD
         [HttpPost("create")]
         public async Task<IActionResult> CreateNewAccount([FromBody] CreateAccountRequestExtension request)
         {

@@ -119,7 +119,7 @@ namespace USSDMiddleware.Core.Managers
                 email = requestModel.customerEmail,
                 itemCode = requestModel.itemCode,
                 phone = requestModel.customerPhoneNumber,
-                phoneValidation = false,
+                phoneValidation = requestModel.phoneValidation,
             };
             return await _cyberPayProvider.Validate(request);
         }
@@ -128,6 +128,7 @@ namespace USSDMiddleware.Core.Managers
         {
             try
             {
+                requestModel.Amount = requestModel.Amount;
                 var response = new VendResponse();
                 var validationResult = ValidateRequest(requestModel);
                 if (!validationResult.Succeeded)
@@ -202,7 +203,11 @@ namespace USSDMiddleware.Core.Managers
             }
             catch (Exception ex)
             {
-                throw new NotSuccessfulException($"An error occured while processing request: {ex}");
+                return new VendResponse
+                {
+                    Succeeded = false,
+                    Message = ex.Message,
+                };
             }
         }
 
@@ -243,7 +248,7 @@ namespace USSDMiddleware.Core.Managers
                 itemCode = requestModel.PaymentCode,
                 customerId = requestModel.CustomerId,
                 customerPhoneNumber = requestModel.CustomerMobile,
-                shouldVerifyCustomer = true,
+                phoneValidation = true,
                 customerEmail = userDetail.Value.Email,
                 customerName = userDetail.Value.CustomerName,
                 amount = requestModel.Amount,

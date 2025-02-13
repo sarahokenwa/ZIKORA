@@ -2,13 +2,24 @@ using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
+using Serilog.Events;
+using Serilog;
 using System.Text.Json.Serialization;
 using USSDMiddleware.Api.Extensions;
 using USSDMiddleware.Api.Mappers;
 using USSDMiddleware.Core.Exceptions;
-using USSDMiddleware.Core.Services;
+
 
 var builder = WebApplication.CreateBuilder(args);
+
+Log.Logger = new LoggerConfiguration()
+           .MinimumLevel.Information()
+           .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+           .Enrich.FromLogContext()
+           .WriteTo.Console()
+           .WriteTo.File("logs/log.txt", rollingInterval: RollingInterval.Day) // Logs will be written to logs/log.txt, rolled daily
+           .CreateLogger();
+builder.Host.UseSerilog();
 
 // Add services to the container.
 builder.Services.AddHangfire(configuration => configuration

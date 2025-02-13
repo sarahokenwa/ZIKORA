@@ -6,12 +6,18 @@ public class AccountCreationResponse
     public string? CustomerId { get; set; }
     public string? AccountNumber { get; set; }
     public string? FullName { get; set; }
+    public string? Message { get; set; }
 
-    public AccountCreationResponse(string? reference, string? customerId, string? accountNumber, string? fullName = null)
+    public AccountCreationResponse()
+    {
+    }
+
+    public AccountCreationResponse(string? reference, string? customerId, string? accountNumber, string? fullName = null, string? message = null)
     {
         Reference = reference;
         CustomerId = customerId;
         AccountNumber = accountNumber;
         FullName = fullName;
+        Message = message;
     }
 }

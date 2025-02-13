@@ -72,7 +72,7 @@ namespace USSDMiddleware.Core.Managers
                 var user = await _userRepository.GetByPhoneNumber(validationLog.PhoneNumber, providerId);
                 if (user.HasValue)
                 {
-                    return new CreateAccountResponse(request.ValidationReference, validationLog.PhoneNumber, null);
+                    return new CreateAccountResponse(request.ValidationReference, validationLog.PhoneNumber, null, "User is already registered for USSD.");
 
                 }
 
@@ -80,7 +80,16 @@ namespace USSDMiddleware.Core.Managers
                 var configuration = new ConfigurationBuilder().Build();
                 var model = BuildUtil.BuildAccountCreationRequest(validationLog, configuration);
                 model.Gender = request.Gender; model.Email = validationLog.Email; model.AccountOfficerCode = _configuration["ApiOptions:Zikora:AccountOfficerCode"]; model.ProductCode = _configuration["ApiOptions:Zikora:ProductCode"];
+
                 AccountCreationResponse response = await provider.CreateAccount(model);
+                if (response.Message != null && response.Message.Contains("BVN Error. Customer BVN must be unique; the BVN you entered already exist."))
+                {
+                    return new CreateAccountResponse
+                    {
+                        Message = "Account already exist."
+                    };
+                }
+
                 var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
                     .With(u => u.Email = validationLog.Email)
                     .With(u => u.CustomerId = response.CustomerId)
@@ -99,7 +108,10 @@ namespace USSDMiddleware.Core.Managers
             catch (Exception ex)
             {
                 _log.LogError(ex, "An error occurred while trying to creating account");
-                return new CreateAccountResponse(request.ValidationReference, null, null); 
+                return new CreateAccountResponse
+                {
+                    Message = "Account creation failed."
+                };
 
             }
         }
@@ -254,7 +266,13 @@ namespace USSDMiddleware.Core.Managers
             catch (Exception ex)
             {
                 _log.LogError("An error occurred while trying to block account.", ex);
-                throw new NotSuccessfulException(ex.Message);
+                //throw new NotSuccessfulException(ex.Message);
+                return new BlockAccountResponse
+                {
+                    RequestStatus = false,
+                    ResponseDescription = "Failed to block account.",
+                    ResponseStatus = "Failed"
+                };
             }
         }
 

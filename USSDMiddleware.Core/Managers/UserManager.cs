@@ -9,6 +9,7 @@ using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Models.Accounts;
+using Microsoft.Extensions.Logging;
 
 namespace USSDMiddleware.Core.Managers
 {
@@ -17,22 +18,25 @@ namespace USSDMiddleware.Core.Managers
         private readonly IUserRepository _userRepository;
         private readonly UssdProviderSelector _providerSelector;
         private readonly IProviderManager _providerManager;
+        private readonly ILogger<UserManager> _log;
 
         public UserManager(
             IUserRepository userRepository,
             UssdProviderSelector providerSelector,
-            IProviderManager providerManager
+            IProviderManager providerManager,
+            ILogger<UserManager> log
            )
 
         {
             _userRepository = userRepository;
             _providerSelector = providerSelector;
             _providerManager = providerManager;
+            _log = log;
         }
 
         public async Task<CreateUserResponse> CreateUser(CreateUserRequest request)
         {
-            ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
+            request.PhoneNumber = ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
                 .With(v => v.PhoneNumber = request.PhoneNumber)
                 .Build());
 
@@ -45,13 +49,29 @@ namespace USSDMiddleware.Core.Managers
             {
                 return new CreateUserResponse
                 {
-                    userId = null, 
+                    userId = null,
                     message = $"User with phone number {request.PhoneNumber} already exists."
                 };
             }
 
             byte[] salt = Utility.GetSalt();
+            string saltBase64 = Convert.ToBase64String(salt);
+            _log.LogInformation($"Generated Salt (Base64): {saltBase64}");
+
+            if (salt == null || salt.Length == 0)
+            {
+                throw new InvalidOperationException("Salt generation failed. The byte array is null or empty.");
+            }
+
             var serviceRsp = await provider.GetUserByPhoneNumber(request.PhoneNumber);
+            if (serviceRsp.Message?.Contains("No customer found with PhoneNumber") == true)
+            {
+                return new CreateUserResponse
+                {
+                    message = $"No customer found with PhoneNumber: {request.PhoneNumber}."
+                };
+            }
+
             var createdUser = await _userRepository.CreateUser(Builder<User>.CreateNew()
                 .With(u => u.PhoneNumber = request.PhoneNumber)
                 .With(u => u.Address = serviceRsp.Address)
@@ -73,7 +93,7 @@ namespace USSDMiddleware.Core.Managers
 
         public async Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request)
         {
-            ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
+            request.PhoneNumber = ValidationUtil.Validate(Builder<ValidationModel>.CreateNew()
                 .With(v => v.PhoneNumber = request.PhoneNumber)
                 .Build());
 
@@ -124,15 +144,22 @@ namespace USSDMiddleware.Core.Managers
             var provider = _providerSelector.GetProvider(request.Provider);
             var serviceRsp = await provider.GetAccountsByPhoneNumber(request.PhoneNumber);
 
-            if (serviceRsp.Count > 0)
+            if (serviceRsp.Count > 0 && serviceRsp.Any(x => x.AccountNumber != null))
             {
                 return serviceRsp.Select(x => new UserAccountNumber
                 {
-                    AccountNumber = x.AccountNumber
+                    AccountNumber = x.AccountNumber,
+                    Message = "Account retrieved successfully."
                 }).ToList();
 
             }
-            return null;
+            return new List<UserAccountNumber>
+    {
+        new UserAccountNumber
+        {
+            Message = serviceRsp.Count > 0 ? serviceRsp.First().Message : $"No customer found with phone number {request.PhoneNumber}"
+        }
+    };
         }
 
         public async Task<AccountBalanceEnquiry> GetAccountBalance(AccountRequest request)
@@ -147,11 +174,9 @@ namespace USSDMiddleware.Core.Managers
             {
                 return new AccountBalanceEnquiry
                 {
-                    Balance = "",
                     Message = "The pin entered is incorrect",
                     Status = false,
-
-                };  
+                };
             }
 
             var serviceRsp = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.AccountNumber });
@@ -162,7 +187,8 @@ namespace USSDMiddleware.Core.Managers
                 {
                     Status = true,
                     Message = "Successful",
-                    Balance = serviceRsp.WithdrawableBalance
+                    AvailableBalance = serviceRsp.AvailableBalance,
+                    WithdrawableBalance = serviceRsp.WithdrawableBalance 
                 };
 
 
@@ -171,7 +197,6 @@ namespace USSDMiddleware.Core.Managers
             {
                 Status = false,
                 Message = "Failed to retrieve balance",
-                Balance = null
             };
 
         }
@@ -194,7 +219,7 @@ namespace USSDMiddleware.Core.Managers
             {
                 return true;
             }
-            
+
         }
     }
 }

@@ -12,6 +12,7 @@ using USSDMiddleware.Core.Models.Bills;
 using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Services;
+using static USSDMiddleware.Core.Models.ResponseModel.ZikoraGetUserByPhoneNumberResponse;
 
 namespace USSDMiddleware.Core.Managers
 {
@@ -104,8 +105,7 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
-                //Converting amount to kobo
-                request.Amount = request.Amount * 100;
+                request.Amount = request.Amount;
 
                 var response = new InstantPayOutResponse();
 
@@ -127,12 +127,26 @@ namespace USSDMiddleware.Core.Managers
                     return new InstantPayOutResponse
                     {
                         Message = "The pin entered is incorrect.",
-                        Succeeded = false 
+                        Succeeded = false
                     };
 
                 }
-                else 
+                else
                 {
+                    var accountBalanceResponse = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.SenderAccountNumber });
+                    if (decimal.TryParse(accountBalanceResponse.AvailableBalance, out decimal availableBalance))
+                    {
+                        decimal availableBalanceInKobo = availableBalance;
+
+                        if (availableBalanceInKobo < request.Amount)
+                        {
+                            return new InstantPayOutResponse
+                            {
+                                Message = "Insufficient account balance.",
+                                Succeeded = false
+                            };
+                        }
+                    }
 
                     CustomerDebit customerDebit = new CustomerDebit
                     {
@@ -150,7 +164,7 @@ namespace USSDMiddleware.Core.Managers
                     {
                         RetrievalReference = settings.RetrievalReference,
                         AccountNumber = request.SenderAccountNumber,
-                        Amount = request.Amount.ToString(),
+                        Amount = request.Amount.ToString(), //Amount is in kobo.
                         Narration = $"Debit Customer account to {request.BeneficiaryName}",
                     };
 
@@ -182,14 +196,19 @@ namespace USSDMiddleware.Core.Managers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while trying to make instant payment.");
-                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Instant payout failed.");
+                _log.LogError(ex, $"An error occurred while trying to make instant payment: {ex.Message}");
+                return new InstantPayOutResponse
+                {
+                    Message = "Instant payout failed.",
+                    Succeeded = false
+                };
             }
         }
 
         public async Task<InstantPayOutResponse> InstantPayOutBill(DebitCustomerAccountResponse debitResponse, CustomerDebit logdebitRequest,
                                                                    InstantPayOutRequestExtension request, string merchantReference)
         {
+
             var provider = _providerSelector.GetProvider(request.Provider);
             var providerId = await provider.GetProviderId(_providerManager);
 
@@ -203,8 +222,9 @@ namespace USSDMiddleware.Core.Managers
             }
             ReQueryRequest requeryPayload = new ReQueryRequest
             {
+
                 RetrievalReference = merchantReference,
-                Amount = request.Amount
+                Amount = request.Amount 
             };
 
             var requery = await provider.StatusQuery(requeryPayload);
@@ -218,7 +238,6 @@ namespace USSDMiddleware.Core.Managers
             }
 
             FundTransfer logInstantPayOut = await LogInstantPayment(request, merchantReference, providerId);
-
 
             var instantPayOut = await _payOutService.InstantPayOut(request, merchantReference);
             if (instantPayOut.Succeeded && instantPayOut.Data != null)
@@ -333,8 +352,7 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
-                //Converting amount to kobo
-                request.Amount = request.Amount * 100;
+                request.Amount = request.Amount;
                 var settings = new ZIKORAModelExtension();
                 settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
 
@@ -363,11 +381,27 @@ namespace USSDMiddleware.Core.Managers
                 var transactionPin = await _userManager.ValidateTransactionPin(request.TransactionPin, request.PhoneNumber, providerId);
                 if (!transactionPin)
                 {
-                    return new IntraBankTransferResponse { 
-                        ResponseMessage = "The pin entered is incorrect.", 
+                    return new IntraBankTransferResponse
+                    {
+                        ResponseMessage = "The pin entered is incorrect.",
                         IsSuccessful = false
                     };
 
+                }
+
+                var accountBalanceResponse = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.FromAccountNumber });
+                if (decimal.TryParse(accountBalanceResponse.AvailableBalance, out decimal availableBalance))
+                {
+                    decimal availableBalanceInKobo = availableBalance;
+
+                    if (availableBalanceInKobo < request.Amount)
+                    {
+                        return new IntraBankTransferResponse
+                        {
+                            ResponseMessage = "Insufficient account balance.",
+                            IsSuccessful = false
+                        };
+                    }
                 }
 
                 var intraBankTransfer = new IntraBankTransfer
@@ -400,8 +434,12 @@ namespace USSDMiddleware.Core.Managers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while trying to make instant payment.");
-                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Instant payout failed.");
+                _log.LogError(ex, $"An error occurred while trying to make instant payment. {ex.Message}");
+                return new IntraBankTransferResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Intrabank transfer failed."
+                };
             }
         }
 

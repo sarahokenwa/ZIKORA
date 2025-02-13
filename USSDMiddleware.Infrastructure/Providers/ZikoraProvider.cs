@@ -50,15 +50,17 @@ namespace USSDMiddleware.Infrastructure.Providers
                 {
                     return new PhoneValidationResponse(false, true, "Phone number exists!");
                 }
+                else
+                {
+                    return new PhoneValidationResponse(false, false, "Phone number does not exist!");
+                }
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while trying to validate customer phone!");
+                _log.LogError(ex, $"An error occurred while trying to validate customer phone: {ex.Message}");
                 return new PhoneValidationResponse(false, false, "Phone number validation failed.");
 
             }
-
-            return new PhoneValidationResponse(false, false, "Phone number does not exist!");
         }
 
         public async Task<GetUserByPhoneNumberResponse> GetUserByPhoneNumber(string phoneNumber)
@@ -69,25 +71,64 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation($"Get User By Phone number Url: {url}");
 
-                var users = await _httpService.Get<ZikoraGetUserByPhoneNumberResponse[]>(url, BuildHeader());
+                var users = await _httpService.Get<object>(url, BuildHeader());
 
-                if (users == null || users.Length == 0)
+                JObject userObject = null;
+
+                if (users is JArray usersArray && usersArray.Count > 0)
                 {
-                    _log.LogError("No customer found in the response");
-                    return null;
+                    var response = usersArray[0].ToObject<ZikoraGetUserByPhoneNumberResponse>();
+                    return Builder<GetUserByPhoneNumberResponse>.CreateNew()
+                      .With(g => g.PhoneNumber = response.PhoneNumber)
+                      .With(g => g.Address = response.Address)
+                      .With(g => g.Email = response.Email)
+                      .With(g => g.CustomerID = response.CustomerID)
+                      .With(g => g.LastName = response.LastName)
+                      .With(g => g.OtherNames = response.OtherNames)
+                      .With(g => g.BankVerificationNumber = response.BankVerificationNumber)
+                      .With(g => g.DateOfBirth = response.DateOfBirth)
+                      .Build();
                 }
 
-                var user = users[0];
-                return Builder<GetUserByPhoneNumberResponse>.CreateNew()
-                    .With(g => g.PhoneNumber = user.PhoneNumber)
-                    .With(g => g.Address = user.Address)
-                    .With(g => g.Email = user.Email)
-                    .With(g => g.CustomerID = user.CustomerID)
-                    .With(g => g.LastName = user.LastName)
-                    .With(g => g.OtherNames = user.OtherNames)
-                    .With(g => g.BankVerificationNumber = user.BankVerificationNumber)
-                    .With(g => g.DateOfBirth = user.DateOfBirth)
-                    .Build();
+
+                if (users is JObject obj)
+                {
+                    userObject = obj;
+
+                    if (userObject["IsSuccessful"] != null)
+                    {
+                        if (userObject["IsSuccessful"]?.Value<bool>() == false)
+                        {
+                            var errorMessage = userObject["Message"]?.ToString() ?? "No customer found.";
+                            _log.LogWarning($"Error: {errorMessage}");
+
+                            return new GetUserByPhoneNumberResponse
+                            {
+                                CustomerID = null,
+                                Message = errorMessage
+                            };
+                        }
+
+                    }
+                    else
+                    {
+                        var user = userObject.ToObject<ZikoraGetUserByPhoneNumberResponse>();
+                        if (user != null && !string.IsNullOrEmpty(user.CustomerID))
+                        {
+                            return Builder<GetUserByPhoneNumberResponse>.CreateNew()
+                                .With(g => g.PhoneNumber = user.PhoneNumber)
+                                .With(g => g.Address = user.Address)
+                                .With(g => g.Email = user.Email)
+                                .With(g => g.CustomerID = user.CustomerID)
+                                .With(g => g.LastName = user.LastName)
+                                .With(g => g.OtherNames = user.OtherNames)
+                                .With(g => g.BankVerificationNumber = user.BankVerificationNumber)
+                                .With(g => g.DateOfBirth = user.DateOfBirth)
+                                .Build();
+                        }
+                    }
+                }
+                return null;
             }
             catch (Exception ex)
             {
@@ -120,10 +161,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                      .With(g => g.Name = null)
                      .Build();
             }
-
             return null;
         }
-        
+
         public async Task<AccountCreationResponse> CreateAccount(AccountCreationRequest req)
         {
             try
@@ -137,8 +177,13 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var isSuccess = rsp["IsSuccessful"]!.Value<bool>();
                 if (!isSuccess)
                 {
-                    return null;
+                    var errorMessage = rsp["Message"]?.Value<string>() ?? "Account creation failed.";
+                    _log.LogWarning($"Account creation failed: {errorMessage}");
 
+                    return new AccountCreationResponse
+                    {
+                        Message = errorMessage
+                    };
                 }
 
                 var messageToken = rsp["Message"];
@@ -150,13 +195,13 @@ namespace USSDMiddleware.Infrastructure.Providers
             catch (Exception ex)
             {
                 _log.LogError(ex, $"An error occurred while trying to create account!: {ex.Message}");
-                return null;
+                return new AccountCreationResponse
+                {
+                    Message = "Account creation failed."
+                };
             }
-
             return null;
-
         }
-
 
         public async Task<BvnInfoResponse> GetBvnInfo(string bvn, string phoneNo)
         {
@@ -173,7 +218,11 @@ namespace USSDMiddleware.Infrastructure.Providers
             _log.LogInformation($"GetBvnInfo Request Body: {jsonContent}");
             if (!bvnInfoResponse.isBvnValid)
             {
-                throw new UssdMiddlewareException(ExceptionType.BAD_REQUEST, "Bvn is invalid");
+                return new BvnInfoResponse()
+                {
+                    RequestStatus = false,
+                    ResponseMessage = bvnInfoResponse.ResponseMessage,
+                };
             }
 
             //if (!bvnInfoResponse.bvnDetails.phoneNumber.Equals(phoneNo))
@@ -185,7 +234,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             {
 
                 throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED,
-                    "An unable to validate your bvn at the moment, try again later!");
+                    "Unable to validate your bvn at the moment, try again later!");
             }
             return bvnInfoResponse;
         }
@@ -216,8 +265,11 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while checking account balance");
-                throw new NotSuccessfulException("Failed to retrieve account balance");
+                _log.LogError(ex, $"An error occurred while retrieving account balance: {ex.Message}");
+                return new BalanceEnquiryResponse
+                {
+                    Message = "Failed to retrieve account balance."
+                };
             }
         }
 
@@ -225,40 +277,98 @@ namespace USSDMiddleware.Infrastructure.Providers
         {
             try
             {
-                var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByCustomerPhoneNumber/2")}&&phoneNumber={phoneNumber}";
+                var url = $"{BuildUrl("/BankOneWebAPI/api/Customer/GetByCustomerPhoneNumber/2")}&phoneNumber={phoneNumber}";
 
-                _log.LogInformation($"CreateAccount Url: {url}");
+                _log.LogInformation($"Get Accounts By Phone Number URL: {url}");
 
-                var serviceRsp = await _httpService.Get<JArray>(url, BuildHeader());
+                var accountsData = await _httpService.Get<object>(url, BuildHeader());
 
-                if (serviceRsp == null)
+                List<GetAccountResponse> accountResponses = new List<GetAccountResponse>();
+
+                if (accountsData is JArray accountsArray && accountsArray.Count > 0)
                 {
-                    return null;
+                    foreach (var customer in accountsArray)
+                    {
+                        if (customer["Accounts"] is JArray accounts && accounts.Count > 0)
+                        {
+                            foreach (var account in accounts)
+                            {
+                                var accountInfo = new GetAccountResponse
+                                {
+                                    AccountNumber = account["AccountNumber"]?.ToString(),
+                                    AccountType = account["AccountType"]?.ToString(),
+                                    AccountStatus = account["AccountStatus"]?.ToString(),
+                                    AccessLevel = account["AccessLevel"]?.ToString(),
+                                    Message = "Account retrieved successfully."
+                                };
 
+                                accountResponses.Add(accountInfo);
+                            }
+                        }
+                    }
+
+                    if (accountResponses.Count == 0)
+                    {
+                        accountResponses.Add(new GetAccountResponse
+                        {
+                            Message = $"No accounts found for phone number {phoneNumber}."
+                        });
+                    }
+
+                    return accountResponses;
                 }
 
-                if (serviceRsp == null || serviceRsp.Count == 0)
+                if (accountsData is JObject accountObject)
                 {
-                    _log.LogError("No accounts found in the response");
-                    throw new NotSuccessfulException("Failed to retrieve accounts.");
-                }
+                    if (accountObject["IsSuccessful"] != null && !accountObject["IsSuccessful"].Value<bool>())
+                    {
+                        var errorMessage = accountObject["Message"]?.ToString() ?? $"No customer found with phone number {phoneNumber}";
+                        _log.LogWarning($"Error: {errorMessage}");
 
-                var accounts = serviceRsp.SelectMany(customer => customer["Accounts"])
-                    .Select(account => new GetAccountResponse
+                        return new List<GetAccountResponse>
+                {
+                    new GetAccountResponse
+                    {
+                        Message = errorMessage
+                    }
+                };
+                    }
+
+                    var accounts = accountObject["Accounts"]?.Select(account => new GetAccountResponse
                     {
                         AccountNumber = account["AccountNumber"]?.ToString(),
                         AccountType = account["AccountType"]?.ToString(),
                         AccountStatus = account["AccountStatus"]?.ToString(),
-                        AccessLevel = account["AccessLevel"]?.ToString()
-                    })
-                    .ToList();
+                        AccessLevel = account["AccessLevel"]?.ToString(),
+                        Message = "Account retrieved successfully."
+                    }).ToList();
 
-                return accounts;
+                    if (accounts != null)
+                    {
+                        accountResponses.AddRange(accounts);
+                    }
+                }
+
+                if (accountResponses.Count == 0)
+                {
+                    accountResponses.Add(new GetAccountResponse
+                    {
+                        Message = $"No accounts found for phone number {phoneNumber}."
+                    });
+                }
+
+                return accountResponses;
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, $"No accounts found: {ex.Message}");
-                return null;
+                _log.LogError(ex, $"An error occurred while retrieving accounts: {ex.Message}");
+                return new List<GetAccountResponse>
+        {
+            new GetAccountResponse
+            {
+                Message = $"No customer found with phone number {phoneNumber}."
+            }
+        };
             }
         }
 
@@ -302,10 +412,14 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
 
-                if (!debitResult.IsSuccessful)
+                if (!debitResult.IsSuccessful || !debitResult.ResponseCode.Equals("00")) //Modify the response code so in a scenario whereby it isn't successful it the response message retreived from the api would be displayed.
                 {
                     _log.LogError($"Debit was not successful: {debitResult.ResponseMessage}");
-                    throw new NotSuccessfulException($"Failed to debit customer account: {debitResult.ResponseMessage}");
+                    return new DebitCustomerAccountResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = debitResult.ResponseMessage,
+                    };
                 }
 
                 _log.LogInformation($"Debit result: {JsonConvert.SerializeObject(debitResult)}");
@@ -316,8 +430,12 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "An error occurred while debiting customer account: {debitResult.ResponseMessage}");
-                throw new NotSuccessfulException("Failed to debit customer account: {debitResult.ResponseMessage}");
+                _log.LogError(ex, $"An error occurred while debiting customer account: {ex.Message}");
+                return new DebitCustomerAccountResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Failed to debit customer account."
+                };
             }
         }
 
@@ -433,13 +551,25 @@ namespace USSDMiddleware.Infrastructure.Providers
                 else
                 {
                     _log.LogError($"Failed to query transaction status: {statusQueryResponseContent.ResponseMessage} ");
-                    throw new NotSuccessfulException($"Failed to query transaction status: {statusQueryResponseContent.ResponseMessage}");
+                    return new RequeryResponse
+                    {
+                        IsSuccessful = statusQueryResponseContent.IsSuccessful,
+                        ResponseMessage = statusQueryResponseContent.ResponseMessage,
+                        ResponseCode = statusQueryResponseContent.ResponseCode,
+                        Reference = statusQueryResponseContent.Reference,
+                        Status = statusQueryResponseContent.Status,
+
+                    };
                 }
             }
             catch (Exception ex)
             {
                 _log.LogError($"Requery was unsuccessful: {ex.Message}");
-                throw new OperationFailedException($"Requery Failed: {ex.Message}", ex);
+                return new RequeryResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Requery Failed",
+                };
             }
         }
 
@@ -483,7 +613,11 @@ namespace USSDMiddleware.Infrastructure.Providers
             catch (Exception ex)
             {
                 _log.LogError($"Account blocking was unsuccessful: {ex.Message}");
-                throw new OperationFailedException($"Failed to block account:{ex.Message}", ex);
+                return new BlockAccountResponse
+                {
+                    RequestStatus = false,
+                    ResponseDescription = "Failed to block account."
+                };
             }
         }
 
@@ -791,6 +925,7 @@ namespace USSDMiddleware.Infrastructure.Providers
         {
             try
             {
+
                 var authenticationKey = _apiOptions.Zikora.Token;
 
                 var localFundsTransferUrl =
@@ -833,8 +968,12 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
             catch (Exception ex)
             {
-                _log.LogError("An error occurred while performing intra-bank transfer.", ex);
-                throw new NotSuccessfulException($"Failed to perform intra-bank transfer: {ex.Message}");
+                _log.LogError($"An error occurred while performing intra-bank transfer.{ex.Message}");
+                return new IntraBankTransferResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Intrabank transfer failed.",
+                };
             }
         }
 
