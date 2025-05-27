@@ -46,6 +46,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation($"ValidatePhone Url: {url}");
 
                 var boolRsp = await _httpService.Get<bool>(url, BuildHeader());
+                _log.LogInformation($"Validate Phone Number Response: {JsonConvert.SerializeObject(boolRsp)}");
                 if (boolRsp.Equals(true))
                 {
                     return new PhoneValidationResponse(false, true, "Phone number exists!");
@@ -72,6 +73,8 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation($"Get User By Phone number Url: {url}");
 
                 var users = await _httpService.Get<object>(url, BuildHeader());
+
+                _log.LogInformation($"Get User By Phone Number Response: {JsonConvert.SerializeObject(users)}");
 
                 JObject userObject = null;
 
@@ -145,6 +148,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
             var response = await _httpService.Get(url, BuildHeader());
 
+            _log.LogInformation($"Get User By Account Number Response: {JsonConvert.SerializeObject(response)}");
+
             if (response is GetUserByAccountNumberResponse user)
             {
                 return Builder<GetUserByAccountNumberResponse>.CreateNew()
@@ -174,6 +179,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation($"CreateAccount Request Body: {req}");
 
                 var rsp = await _httpService.Post<JObject>(url, BuildHeader(), JsonConvert.SerializeObject(req));
+                _log.LogInformation($"Create Account Response: {JsonConvert.SerializeObject(rsp)}");
                 var isSuccess = rsp["IsSuccessful"]!.Value<bool>();
                 if (!isSuccess)
                 {
@@ -214,7 +220,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             var jsonContent = JsonConvert.SerializeObject(request);
             var bvnInfoResponse = await _httpService.Post<BvnInfoResponse>(BuildUrl("thirdpartyapiservice/apiservice/Account/BVN/GetBVNDetails"), BuildHeader(), jsonContent);
 
-
+            _log.LogInformation($"Get BVN Info Response: {JsonConvert.SerializeObject(bvnInfoResponse)}");
             _log.LogInformation($"GetBvnInfo Request Body: {jsonContent}");
             if (!bvnInfoResponse.isBvnValid)
             {
@@ -256,6 +262,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             try
             {
                 var serviceRsp = await _httpService.Get<ZikoraBalanceEnquiryResponse>(url, BuildHeader());
+                _log.LogInformation($"Check Account Balance Response: {JsonConvert.SerializeObject(serviceRsp)}");
                 return Builder<BalanceEnquiryResponse>.CreateNew()
                     .With(b => b.AvailableBalance = serviceRsp.AvailableBalance)
                     .With(b => b.LedgerBalance = serviceRsp.LedgerBalance)
@@ -282,6 +289,8 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation($"Get Accounts By Phone Number URL: {url}");
 
                 var accountsData = await _httpService.Get<object>(url, BuildHeader());
+
+                _log.LogInformation($"Get Accounts By Phone Number Response: {JsonConvert.SerializeObject(accountsData)}");
 
                 List<GetAccountResponse> accountResponses = new List<GetAccountResponse>();
 
@@ -400,7 +409,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var debitResponseContent = await _httpService.Post<DebitCustomerAccountResponse>(debitUrl, headers, jsonContent);
 
-
+                _log.LogInformation($"Debit Customer Account Response: {JsonConvert.SerializeObject(debitResponseContent)}");
                 var debitResult = new DebitCustomerAccountResponse
                 {
                     IsSuccessful = debitResponseContent.IsSuccessful,
@@ -468,6 +477,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var cardResponseContent = await _httpService.Post<CardResponse>(cardRequestUrl, headers, jsonContent);
 
+                _log.LogInformation($"Card Request Response: {JsonConvert.SerializeObject(cardResponseContent)}");
                 if (cardResponseContent != null && cardResponseContent.IsSuccessful == true)
                 {
                     var cardResult = new CardResponse
@@ -534,6 +544,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var statusQueryResponseContent = await _httpService.Post<RequeryResponse>(statusQueryUrl, headers, statusQueryJsonContent);
 
+                _log.LogInformation($"Status Query Response: {JsonConvert.SerializeObject(statusQueryResponseContent)}");
+
                 if (statusQueryResponseContent.ResponseCode == "00" && statusQueryResponseContent.ResponseMessage == "Successful")
                 {
                     var statusQueryResult = new RequeryResponse
@@ -596,6 +608,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var response = await _httpService.Post<BlockAccountResponse>(blockAccountUrl, headers, jsonContent);
 
+                _log.LogInformation($"Block account response: {JsonConvert.SerializeObject(response)}");
 
                 var blockAccountResponse = new BlockAccountResponse
                 {
@@ -643,6 +656,8 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation($"DeactivatePND Request Body: {jsonContent}");
 
                 var response = await _httpService.Post<BlockAccountResponse>(deactivatePostNoDebitUrl, headers, jsonContent);
+
+                _log.LogInformation($"Deactivate DND response: {JsonConvert.SerializeObject(response)}");
 
                 if (response.RequestStatus = true && response.ResponseStatus == "Successful")
                 {
@@ -695,6 +710,8 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation($"VerifyPNDStatus Request Body: {jsonContent}");
 
                 var response = await _httpService.Post<BlockAccountResponse>(verifyAccountPNDStatusUrl, headers, jsonContent);
+
+                _log.LogInformation($"Validate PND response: {JsonConvert.SerializeObject(response)}");
 
                 if (response.RequestStatus == true && response.ResponseStatus == "Active")
                 {
@@ -751,6 +768,8 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation($"GetCustomerCards Request Body: {jsonContent}");
 
                 var response = await _httpService.Post<GetCustomerCardResponse>(getCustomerCardsUrl, headers, jsonContent);
+
+                _log.LogInformation($"Get Customer Cards Response: {JsonConvert.SerializeObject(response)}");
 
                 if (response.IsSuccessful && response.Cards != null)
                 {
@@ -811,6 +830,8 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation($"FreezeCard Request Body: {jsonContent}");
 
                 var response = await _httpService.Post<FreezeCardResponse>(freezeCardUrl, headers, jsonContent);
+
+                _log.LogInformation($"Freeze Card Response: {JsonConvert.SerializeObject(response)}");
 
                 if (response.IsSuccessful)
                 {
@@ -879,6 +900,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation($"UnFreezeCard Request Body: {jsonContent}");
 
                 var response = await _httpService.Post<UnFreezeCardResponse>(unFreezeCardUrl, headers, jsonContent);
+
+                _log.LogInformation($"UnFreeze Card Response: {JsonConvert.SerializeObject(response)}");
+
                 if (response.IsSuccessful)
                 {
 
@@ -951,6 +975,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var response = await _httpService.Post<IntraBankTransferResponse>(localFundsTransferUrl, headers, jsonContent);
 
+                _log.LogInformation($"IntraBank Transfer Response: {JsonConvert.SerializeObject(response)}");
 
                 var intraBankTransferResponse = new IntraBankTransferResponse
                 {

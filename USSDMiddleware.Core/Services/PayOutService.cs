@@ -48,6 +48,8 @@ namespace USSDMiddleware.Core.Services
 
                 var nameEnquiryResponse = await _httpService.Post<NameEnquiryResponse>(url, httpContent, credentials.access_token);
 
+                _log.LogInformation($"Name Enquiry Response: {JsonConvert.SerializeObject(nameEnquiryResponse)}");
+
                 if (nameEnquiryResponse != null)
                 {
                     _log.LogInformation($"Name Enquiry Response: {JsonConvert.SerializeObject(nameEnquiryResponse)}");
@@ -115,6 +117,8 @@ namespace USSDMiddleware.Core.Services
 
                 var instantPayOutResponse = await _httpService.Post<InstantPayOutResponse>(url, httpContent, credentials.access_token);
 
+                _log.LogInformation($"Instant PayOut Reponse: {JsonConvert.SerializeObject(instantPayOutResponse)}");
+
                 if (instantPayOutResponse.Code == "01" && instantPayOutResponse.Succeeded == true)
                 {
                     _log.LogInformation($"Instant PayOut Response: {JsonConvert.SerializeObject(instantPayOutResponse)}");
@@ -151,13 +155,14 @@ namespace USSDMiddleware.Core.Services
                 var url = $"{_apiOptions.CyberPayFundTransferUrl}/reference/{reference}";
                 var response = await _httpService.Get<RequeryResponse>(url, credentials.access_token);
 
+                _log.LogInformation($"Requery Response: {JsonConvert.SerializeObject(response)}");
+
                 if (response == null || !response.IsSuccessful)
                 {
                     _log.LogError($"Failed to retrieve requery response. HTTP status code: {response?.ResponseCode?? "null"}");
                     return null;
                 }
 
-                _log.LogInformation($"Requery Response: {JsonConvert.SerializeObject(response)}");
                 return response;
             }
             catch (Exception ex)
@@ -180,6 +185,8 @@ namespace USSDMiddleware.Core.Services
                 var credentials = await _cyberPayProvider.GetClientCredentials();
                 var url = $"{_apiOptions.PaymentUrl}/api/v1/banks/all";
                 var response = await _httpService.Get<BankResponse>(url, credentials.access_token);
+
+                _log.LogInformation($"Get Banks Response: {JsonConvert.SerializeObject(response)}");
 
                 if (response == null || response.Data == null || !response.Data.Any())
                 {

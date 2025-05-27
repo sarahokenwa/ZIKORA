@@ -38,6 +38,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                 string token = authResponse != null ? authResponse.access_token : string.Empty;
 
                 CategoriesResponse transferResponse = await _httpService.Get<CategoriesResponse>($"{_apiOptions.CyberPayBillUrl}/api/v1/bill/category?categoryType={categoryType}", token);
+
+                _log.LogInformation($"Get Categories response: {JsonConvert.SerializeObject(transferResponse)}");
+
                 return transferResponse;
             }
             catch (Exception e)
@@ -56,6 +59,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                 string token = authResponse != null ? authResponse.access_token : string.Empty;
 
                 BillersResponse transferResponse = await _httpService.Get<BillersResponse>($"{_apiOptions.CyberPayBillUrl}/api/v1/bill/billers?categoryId={categoryId}", token);
+
+                _log.LogInformation($"Get Billers response: {JsonConvert.SerializeObject(transferResponse)}");
+
                 return transferResponse;
             }
             catch (Exception e)
@@ -74,6 +80,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 string token = authResponse != null ? authResponse.access_token : string.Empty;
 
                 PaymentItemsResponse transferResponse = await _httpService.Get<PaymentItemsResponse>($"{_apiOptions.CyberPayBillUrl}/api/v1/bill/payment-items?billerId={billerId}", token);
+                _log.LogInformation($"Get Payment Items response: {JsonConvert.SerializeObject(transferResponse)}");
                 return transferResponse;
             }
             catch (Exception e)
@@ -95,6 +102,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 string token = authResponse != null ? authResponse.access_token : string.Empty;
 
                 VendResponse transferResponse = await _httpService.Post<VendResponse>($"{_apiOptions.CyberPayBillUrl}/api/v1/vend", httpContent, token);
+                _log.LogInformation($"Vend response: {JsonConvert.SerializeObject(transferResponse)}");
                 return transferResponse;
             }
             catch (Exception e)
@@ -117,6 +125,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 string token = authResponse != null ? authResponse.access_token : string.Empty;
 
                 ValidateResponse response = await _httpService.Post<ValidateResponse>($"{_apiOptions.CyberPayBillUrl}/api/v1/validate", httpContent, token);
+                _log.LogInformation($"Validate customer Id response: {JsonConvert.SerializeObject(response)}");
                 return response;
             }
             catch (Exception e)
@@ -173,7 +182,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     HttpResponseMessage httpResponseMessage = await client.PostAsync(authUrl, null);
                     string response = httpResponseMessage.Content.ReadAsStringAsync().Result;
 
-                    _log.LogInformation($"Response Body: {response}");
+                    _log.LogInformation($"Auth Response Body: {response}");
 
                     var freshToken = JsonConvert.DeserializeObject<CyberPayPayoutAuthResponse>(response);
 
