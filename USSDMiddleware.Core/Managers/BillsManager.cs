@@ -243,24 +243,24 @@ namespace USSDMiddleware.Core.Managers
             var logBill = await LogBillPayment(requestModel, providerId, merchantRef);
 
 
-            var validateRequest = new ValidateRequestModel
-            {
-                itemCode = requestModel.PaymentCode,
-                customerId = requestModel.CustomerId,
-                customerPhoneNumber = requestModel.CustomerMobile,
-                phoneValidation = true,
-                customerEmail = userDetail.Value.Email,
-                customerName = userDetail.Value.CustomerName,
-                amount = requestModel.Amount,
-                Provider = Enums.Providers.ZIKORA
-            };
+            //var validateRequest = new ValidateRequestModel
+            //{
+            //    itemCode = requestModel.PaymentCode,
+            //    customerId = requestModel.CustomerId,
+            //    customerPhoneNumber = requestModel.CustomerMobile,
+            //    phoneValidation = true,
+            //    customerEmail = userDetail.Value.Email,
+            //    customerName = userDetail.Value.CustomerName,
+            //    amount = requestModel.Amount,
+            //    Provider = Enums.Providers.ZIKORA
+            //};
 
-            var validate = await Validate(validateRequest);
-            if (validate == null || validate.Data == null)
-            {
-                throw new NotSuccessfulException($"Invalid customerId : {requestModel.CustomerId}.");
-            }
-            requestModel.validationReference = validate.Data.ValidationRef;
+            //var validate = await Validate(validateRequest);
+            //if (validate == null || validate.Data == null)
+            //{
+            //    throw new NotSuccessfulException($"Invalid customerId : {requestModel.CustomerId}.");
+            //}
+            //requestModel.validationReference = validate.Data.ValidationRef;
             VendRequest vendRequest = CreateVendRequest(requestModel, merchantRef);
 
 
