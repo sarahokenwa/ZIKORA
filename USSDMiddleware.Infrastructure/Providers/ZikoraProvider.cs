@@ -290,7 +290,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var accountsData = await _httpService.Get<object>(url, BuildHeader());
 
-                _log.LogInformation($"Get Accounts By Phone Number Response: {JsonConvert.SerializeObject(accountsData)}");
+                //_log.LogInformation($"Get Accounts By Phone Number Response: {JsonConvert.SerializeObject(accountsData)}");
 
                 List<GetAccountResponse> accountResponses = new List<GetAccountResponse>();
 
@@ -394,9 +394,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                 {
                     model.RetrievalReference,
                     model.AccountNumber,
-                    model.Amount,
                     model.Narration,
-                    GLCode = _configuration["ApiOptions:Zikora:GLCode"],
+                    model.GLCode,
+                    Amount = model.Amount * 100,
                     NibssCode = _configuration["ApiOptions:Zikora:NibssCode"],
                     Fee = _configuration["ApiOptions:Zikora:FundTransferFee"],
                     token = authenticationToken,

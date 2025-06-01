@@ -7,7 +7,7 @@ public class DebitCustomerAccountRequest
     public string AccountNumber { get; set; }
     public string NibssCode { get; set; }
 
-    public string Amount { get; set; }
+    public decimal Amount { get; set; }
 
     public string Fee { get; set; }
 

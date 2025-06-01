@@ -105,8 +105,6 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
-                request.Amount = request.Amount;
-
                 var response = new InstantPayOutResponse();
 
                 var settings = new ZIKORAModelExtension();
@@ -164,8 +162,9 @@ namespace USSDMiddleware.Core.Managers
                     {
                         RetrievalReference = settings.RetrievalReference,
                         AccountNumber = request.SenderAccountNumber,
-                        Amount = request.Amount.ToString(), //Amount is in kobo.
+                        Amount = request.Amount,
                         Narration = $"Debit Customer account to {request.BeneficiaryName}",
+                        GLCode = _configuration["ApiOptions:Zikora:FTGLCode"]
                     };
 
                     CustomerDebit logdebitRequest = await LogCustomerDebit(customerDebit);
@@ -224,7 +223,7 @@ namespace USSDMiddleware.Core.Managers
             {
 
                 RetrievalReference = merchantReference,
-                Amount = request.Amount 
+                Amount = request.Amount * 100, // Convert to kobo
             };
 
             var requery = await provider.StatusQuery(requeryPayload);

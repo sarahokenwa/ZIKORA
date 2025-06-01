@@ -124,7 +124,13 @@ namespace USSDMiddleware.Infrastructure.Providers
                 CyberPayPayoutAuthResponse authResponse = await GetClientCredentials();
                 string token = authResponse != null ? authResponse.access_token : string.Empty;
 
-                ValidateResponse response = await _httpService.Post<ValidateResponse>($"{_apiOptions.CyberPayBillUrl}/api/v1/validate", httpContent, token);
+                _log.LogInformation($"Validate Customer Id Request: {request}");
+
+                string valUrl = $"{_apiOptions.CyberPayBillUrl}/api/v1/validate";
+
+                _log.LogInformation($"Validate Customer Id URL: {valUrl}");
+
+                ValidateResponse response = await _httpService.Post<ValidateResponse>(valUrl, httpContent, token);
                 _log.LogInformation($"Validate customer Id response: {JsonConvert.SerializeObject(response)}");
                 return response;
             }

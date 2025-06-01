@@ -44,6 +44,10 @@ namespace USSDMiddleware.Core.Services
                 var url = $"{_apiOptions.CyberPayFundTransferUrl}/api/v1/account/name-enquiry";
 
                 var stringContent = JsonConvert.SerializeObject(request);
+
+                _log.LogInformation($"Name Enquiry Url: {url}");
+                _log.LogInformation($"Name Enquiry Request Body: {stringContent}");
+
                 HttpContent httpContent = new StringContent(stringContent, Encoding.UTF8, "application/json");
 
                 var nameEnquiryResponse = await _httpService.Post<NameEnquiryResponse>(url, httpContent, credentials.access_token);
@@ -78,8 +82,8 @@ namespace USSDMiddleware.Core.Services
 
                 var nameEnquiryRequest = new NameEnquiryRequest
                 {
-                    AccountNumber = request.AccountNumber,
-                    BankCode = request.BankCode,
+                    accountNumber = request.AccountNumber,
+                    bankCode = request.BankCode,
                 };
 
                 var nameEnquiryResponse = await NameEnquiry(nameEnquiryRequest);
@@ -99,9 +103,9 @@ namespace USSDMiddleware.Core.Services
                     request.AccountNumber,
                     request.SenderName,
                     request.BeneficiaryName,
-                    request.Amount,
                     request.Narration,
                     request.BankCode,
+                    Amount = request.Amount * 100,
                     MerchantRef = merchantReference,
                     WalletCode = _configuration["ApiOptions:Zikora:WalletCode"],
                     WebHook = _configuration["ApiOptions:Zikora:WebHook"],

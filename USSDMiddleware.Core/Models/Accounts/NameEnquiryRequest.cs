@@ -2,7 +2,7 @@
 {
     public class NameEnquiryRequest
     {
-        public string BankCode { get; set; }
-        public string AccountNumber { get; set; }
+        public string bankCode { get; set; }
+        public string accountNumber { get; set; }
     }
 }

@@ -177,8 +177,9 @@ namespace USSDMiddleware.Core.Managers
                 {
                     RetrievalReference = settings.RetrievalReference,
                     AccountNumber = requestModel.DrAccountNumber,
-                    Amount = requestModel.Amount.ToString(),
+                    Amount = requestModel.Amount,
                     Narration = $"Debit Customer account {requestModel.DrAccountNumber}  for {requestModel.CustomerId}",
+                    GLCode = _configuration["ApiOptions:Zikora:BillsGLCode"]
                 };
 
                 DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);
@@ -342,7 +343,7 @@ namespace USSDMiddleware.Core.Managers
         {
             return new VendRequest
             {
-                amount = requestModel.Amount,
+                amount = requestModel.Amount * 100,
                 merchantRef = merchantRef,
                 validationRef = requestModel.validationReference
             };
