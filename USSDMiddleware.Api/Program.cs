@@ -124,7 +124,7 @@ app.UseSwaggerUI();
 app.UseMiddleware<GlobalExceptionHandler>();
 
 app.UseHttpsRedirection();
-app.UseCors("*");
+app.UseCors();
 
 
 app.UseAuthentication();

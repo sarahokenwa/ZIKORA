@@ -404,8 +404,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 var jsonContent = JsonConvert.SerializeObject(debitPayload);
 
-                _log.LogInformation($"DebitCustomerAccount Url: {debitUrl}");
-                _log.LogInformation($"CreateAccount Request Body: {jsonContent}");
+                _log.LogInformation($"Debit Customer Account Url: {debitUrl}");
+                _log.LogInformation($"Debit Customer Request Body: {jsonContent}");
 
                 var debitResponseContent = await _httpService.Post<DebitCustomerAccountResponse>(debitUrl, headers, jsonContent);
 

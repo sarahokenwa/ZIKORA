@@ -112,7 +112,7 @@ namespace USSDMiddleware.Core.Managers
                 string merchantReference = settings.RetrievalReference;
 
                 // Extract configuration values from appsettings.
-                settings.GLCode = _configuration["ApiOptions:Zikora:GLCode"];
+                settings.GLCode = _configuration["ApiOptions:Zikora:FTGLCode"];
                 settings.NibssCode = _configuration["ApiOptions:Zikora:NibssCode"];
                 settings.FundTransferFee = decimal.Parse(_configuration["ApiOptions:Zikora:FundTransferFee"]);
 
@@ -162,7 +162,7 @@ namespace USSDMiddleware.Core.Managers
                     {
                         RetrievalReference = settings.RetrievalReference,
                         AccountNumber = request.SenderAccountNumber,
-                        Amount = request.Amount,
+                        Amount = request.Amount, //Converted to kobo on the provider side
                         Narration = $"Debit Customer account to {request.BeneficiaryName}",
                         GLCode = _configuration["ApiOptions:Zikora:FTGLCode"]
                     };
@@ -419,8 +419,8 @@ namespace USSDMiddleware.Core.Managers
                     RetrievalReference = settings.RetrievalReference,
                     FromAccountNumber = request.FromAccountNumber,
                     ToAccountNumber = request.ToAccountNumber,
-                    Amount = request.Amount,
-                    Fee = intraBankTransfer.Fee,
+                    Amount = request.Amount * 100,
+                    Fee = intraBankTransfer.Fee * 100,
                     Narration = $"Debit Customer account to {request.ToAccountNumber}",
                 };
 

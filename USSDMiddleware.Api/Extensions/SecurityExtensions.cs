@@ -28,7 +28,7 @@ namespace USSDMiddleware.Api.Extensions
                            .Build();
                 }));
 
-            var host = Configuration.GetValue<string>("Identity:Authority");
+            var authority = Configuration.GetValue<string>("Identity:Authority");
            // var idoptions = Configuration.GetSection("Identity").Get<IdentityOptions>();
             services.AddSingleton(Configuration.GetSection("Identity").Get<IdentityOptions>());
 
@@ -45,10 +45,14 @@ namespace USSDMiddleware.Api.Extensions
              x.SaveToken = true;
              x.TokenValidationParameters = new TokenValidationParameters
              {
-                 ValidateIssuerSigningKey = true,
+                 ValidateIssuerSigningKey = false,
                  IssuerSigningKey = GetSecurityKey(Configuration.GetValue<string>("Identity:IdentityPublicKey")),
-                 ValidateIssuer = false,
-                 ValidateAudience = false
+                 ValidateIssuer = true,
+                 ValidIssuer = authority,
+                 ValidAudience = Configuration.GetValue<string>("Identity:Audience"),
+                 ValidateAudience = false,
+                 ValidateLifetime = true,
+                 ClockSkew = TimeSpan.FromMinutes(60)
              };
          })
          .AddCookie(Constants.AuthScheme.Cookie, options =>
