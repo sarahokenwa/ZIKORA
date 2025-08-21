@@ -32,6 +32,8 @@
         public string FTGLCode { get; set; }
         public string BillsGLCode { get; set; }
         public string NibssCode { get; set; }
+        public decimal DailyLimitInKobo { get; set; }
+        public decimal TransactionLimitInKobo { get; set; }
         public List<ChargeConfig> Charges { get; set; }
     }
 

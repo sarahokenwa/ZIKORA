@@ -109,8 +109,7 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
-                string amountStr = _configuration["ApiOptions:Zikora:TransactionLimitInKobo"];
-                long amountLimit = Convert.ToInt64(amountStr);
+                decimal amountLimit = _apiOptions.Zikora.TransactionLimitInKobo;
 
                 if (request.Amount > (amountLimit/100))
                 {
@@ -122,9 +121,8 @@ namespace USSDMiddleware.Core.Managers
                 }
 
                 var cumulativeAmount = await _instantPayOutRepository.GetCumulativeFundTransferToday(request.SenderAccountNumber);
-                string cumulativeAmountStr = _configuration["ApiOptions:Zikora:DailyLimitInKobo"];
 
-                long cumulativeAmountLimit = Convert.ToInt64(cumulativeAmountStr);
+                decimal cumulativeAmountLimit = _apiOptions.Zikora.DailyLimitInKobo;
                 decimal newCumulativeAmount = cumulativeAmount + request.Amount;
                 decimal cumulativeAmountLimitNgn = cumulativeAmountLimit / 100;
                 decimal amountInKobo = request.Amount * 100;
@@ -173,8 +171,8 @@ namespace USSDMiddleware.Core.Managers
                 string merchantReference = settings.RetrievalReference;
 
                 // Extract configuration values from appsettings.
-                settings.GLCode = _configuration["ApiOptions:Zikora:FTGLCode"];
-                settings.NibssCode = _configuration["ApiOptions:Zikora:NibssCode"];
+                settings.GLCode = _apiOptions.Zikora.FTGLCode;
+                settings.NibssCode = _apiOptions.Zikora.NibssCode;
 
                 Interfaces.Providers.IUssdProvider provider = _providerSelector.GetProvider(request.Provider);
                 var providerId = await provider.GetProviderId(_providerManager);
@@ -212,7 +210,7 @@ namespace USSDMiddleware.Core.Managers
                         AccountNumber = request.SenderAccountNumber,
                         RetrievalReference = settings.RetrievalReference,
                         Narration = request.Narration,
-                        GLCode = settings.GLCode,
+                        GLCode = _apiOptions.Zikora.FTGLCode,
                         NibssCode = settings.NibssCode,
                         ProviderId = providerId,
                         BankCode = settings.BankCode,

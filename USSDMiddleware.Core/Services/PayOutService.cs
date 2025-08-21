@@ -123,7 +123,7 @@ namespace USSDMiddleware.Core.Services
 
                 _log.LogInformation($"Instant PayOut Reponse: {JsonConvert.SerializeObject(instantPayOutResponse)}");
 
-                if (instantPayOutResponse.Code == "00" && instantPayOutResponse.Succeeded == true)
+                if (instantPayOutResponse.Code == "PR" && instantPayOutResponse.Succeeded == true)
                 {
                     _log.LogInformation($"Instant PayOut Response: {JsonConvert.SerializeObject(instantPayOutResponse)}");
                     return instantPayOutResponse;
