@@ -123,7 +123,7 @@ namespace USSDMiddleware.Core.Services
 
                 _log.LogInformation($"Instant PayOut Reponse: {JsonConvert.SerializeObject(instantPayOutResponse)}");
 
-                if (instantPayOutResponse.Code == "01" && instantPayOutResponse.Succeeded == true)
+                if (instantPayOutResponse.Code == "00" && instantPayOutResponse.Succeeded == true)
                 {
                     _log.LogInformation($"Instant PayOut Response: {JsonConvert.SerializeObject(instantPayOutResponse)}");
                     return instantPayOutResponse;
@@ -135,6 +135,7 @@ namespace USSDMiddleware.Core.Services
                     return new InstantPayOutResponse
                     {
                         Succeeded = false,
+                        Code = instantPayOutResponse.Code,
                         Message = instantPayOutResponse.Message,
                     };
                 }
@@ -146,6 +147,7 @@ namespace USSDMiddleware.Core.Services
                 return new InstantPayOutResponse
                 {
                     Succeeded = false,
+                    Code = "500",
                     Message = "Instant payout failed.",
                 };
             }

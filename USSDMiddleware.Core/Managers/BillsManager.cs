@@ -28,6 +28,7 @@ namespace USSDMiddleware.Core.Managers
         private readonly IPayOutManager _payOutManager;
         private readonly IConfiguration _configuration;
         private readonly IBackgroundService _backgroundService;
+        private readonly ApiOptions _apiOptions;
 
 
         public BillsManager(IUserRepository userRepository,
@@ -39,7 +40,8 @@ namespace USSDMiddleware.Core.Managers
             IUserManager userManager,
             IPayOutManager payOutManager,
             IConfiguration configuration,
-            IBackgroundService backgroundService)
+            IBackgroundService backgroundService,
+            ApiOptions apiOptions)
         {
             _userRepository = userRepository;
             _cyberPayProvider = cyberPayProvider;
@@ -50,6 +52,7 @@ namespace USSDMiddleware.Core.Managers
             _userManager = userManager;
             _payOutManager = payOutManager;
             _configuration = configuration;
+            _apiOptions = apiOptions;
             _backgroundService = backgroundService;
         }
 
@@ -153,10 +156,7 @@ namespace USSDMiddleware.Core.Managers
 
                 var settings = new ZIKORAModelExtension();
                 settings.RetrievalReference = Guid.NewGuid().ToString("N").ToUpper().Substring(0, 12);
-                settings.GLCode = _configuration["ApiOptions:Zikora:GLCode"];
-                settings.NibssCode = _configuration["ApiOptions:Zikora:NibssCode"];
-                settings.FundTransferFee = decimal.Parse(_configuration["ApiOptions:Zikora:FundTransferFee"]);
-                settings.BankCode = _configuration["ApiOptions:Zikora:BankCode"];
+                settings.BankCode = _apiOptions.Zikora.BankCode;
                 string merchantRef = settings.RetrievalReference;
 
                 CustomerDebit customerDebit = new CustomerDebit
@@ -164,11 +164,12 @@ namespace USSDMiddleware.Core.Managers
                     Amount = requestModel.Amount,
                     AccountNumber = requestModel.DrAccountNumber,
                     RetrievalReference = settings.RetrievalReference,
-                    Narration = $"Bills payment {requestModel.PaymentCode} for {requestModel.CustomerId}",
-                    GLCode = settings.GLCode,
-                    NibssCode = settings.NibssCode,
+                    Narration = $"BILLS PAYMENT {requestModel.PaymentCode} for {requestModel.CustomerId}",
+                    GLCode = _apiOptions.Zikora.BillsGLCode,
+                    NibssCode = _apiOptions.Zikora.NibssCode,
                     ProviderId = providerId,
                     BankCode = settings.BankCode,
+                    Fee = requestModel.fee,
                 };
 
                 CustomerDebit logdebitRequest = await _payOutManager.LogCustomerDebit(customerDebit);
@@ -178,8 +179,9 @@ namespace USSDMiddleware.Core.Managers
                     RetrievalReference = settings.RetrievalReference,
                     AccountNumber = requestModel.DrAccountNumber,
                     Amount = requestModel.Amount,
-                    Narration = $"Debit Customer account {requestModel.DrAccountNumber}  for {requestModel.CustomerId}",
-                    GLCode = _configuration["ApiOptions:Zikora:BillsGLCode"]
+                    Narration = $"BILLS PAYMENT {requestModel.PaymentCode}  for {requestModel.CustomerId}",
+                    GLCode = _apiOptions.Zikora.BillsGLCode,
+                    Fee = requestModel.fee * 100,
                 };
 
                 DebitCustomerAccountResponse debitResponse = await provider.DebitCustomerAccount(debitRequest);

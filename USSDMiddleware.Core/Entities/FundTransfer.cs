@@ -15,6 +15,8 @@ namespace USSDMiddleware.Core.Entities
         public string BeneficiaryName { get; set; }
         [StringLength(60)]
         public string SenderName { get; set; }
+        [StringLength(10)]
+        public string SenderAccountNumber { get; set; }
         [StringLength(60)]
         public string AccountNumber { get; set; }
         [StringLength(60)]

@@ -9,7 +9,7 @@ public class DebitCustomerAccountRequest
 
     public decimal Amount { get; set; }
 
-    public string Fee { get; set; }
+    public decimal Fee { get; set; }
 
     public string Narration { get; set; }
 

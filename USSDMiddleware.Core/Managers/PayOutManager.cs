@@ -1,6 +1,7 @@
 ﻿using FizzWare.NBuilder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
 using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Enums;
 using USSDMiddleware.Core.Exceptions;
@@ -20,6 +21,7 @@ namespace USSDMiddleware.Core.Managers
     {
         private readonly IPayOutService _payOutService;
         private readonly ILogger<PayOutManager> _log;
+        private readonly ApiOptions _apiOptions;
         private readonly IUserRepository _userRepository;
         private readonly UssdProviderSelector _providerSelector;
         private readonly IProviderManager _providerManager;
@@ -41,7 +43,8 @@ namespace USSDMiddleware.Core.Managers
             ICustomerDebitRepository customerDebitRepository,
             IUserManager userManager,
             IBackgroundService backgroundService,
-            IIntraBankTransferRepository intraBankTransferRepository)
+            IIntraBankTransferRepository intraBankTransferRepository,
+            ApiOptions apiOptions)
         {
             _payOutService = payOutService;
             _log = log;
@@ -54,6 +57,7 @@ namespace USSDMiddleware.Core.Managers
             _userManager = userManager;
             _backgroundService = backgroundService;
             _intraBankTransferRepository = intraBankTransferRepository;
+            _apiOptions = apiOptions;
         }
 
         public async Task<InstantPayOutResponse> InstantPayOut(InstantPayOutRequestExtension request)
@@ -105,6 +109,63 @@ namespace USSDMiddleware.Core.Managers
                     };
                 }
 
+                string amountStr = _configuration["ApiOptions:Zikora:TransactionLimitInKobo"];
+                long amountLimit = Convert.ToInt64(amountStr);
+
+                if (request.Amount > (amountLimit/100))
+                {
+                    return new InstantPayOutResponse
+                    {
+                        Message = $"Transaction amount cannot be greater than {amountLimit.ToString("C", new CultureInfo("en-NG"))}.",
+                        Succeeded = false
+                    };
+                }
+
+                var cumulativeAmount = await _instantPayOutRepository.GetCumulativeFundTransferToday(request.SenderAccountNumber);
+                string cumulativeAmountStr = _configuration["ApiOptions:Zikora:DailyLimitInKobo"];
+
+                long cumulativeAmountLimit = Convert.ToInt64(cumulativeAmountStr);
+                decimal newCumulativeAmount = cumulativeAmount + request.Amount;
+                decimal cumulativeAmountLimitNgn = cumulativeAmountLimit / 100;
+                decimal amountInKobo = request.Amount * 100;
+
+                if (newCumulativeAmount > cumulativeAmountLimitNgn)
+                {
+                    return new InstantPayOutResponse
+                    {
+                        Message = $"Cumulative fund transfer for today, {newCumulativeAmount.ToString("C", new CultureInfo("en-NG"))} cannot be greater than {cumulativeAmountLimitNgn.ToString("C", new CultureInfo("en-NG"))}.",
+                        Succeeded = false
+                    };
+                }
+
+                var chargeConfigs = _apiOptions.Zikora.Charges;
+
+                if (chargeConfigs == null || !chargeConfigs.Any())
+                {
+                    return new InstantPayOutResponse
+                    {
+                        Message = "No charge configuration found.",
+                        Succeeded = false
+                    };
+                }
+
+                var applicableCharge = chargeConfigs
+                        .Where(c => amountInKobo >= c.FromAmount && amountInKobo <= c.ToAmount)
+                        .OrderBy(c => c.FromAmount)
+                        .FirstOrDefault();
+
+                if (applicableCharge == null)
+                {
+                    return new InstantPayOutResponse
+                    {
+                        Message = "No applicable charge found.",
+                        Succeeded = false
+                    };
+                }
+
+                var feeInKobo = applicableCharge.Charge;
+                var feeInNaira = applicableCharge.Charge / 100;
+
                 var response = new InstantPayOutResponse();
 
                 var settings = new ZIKORAModelExtension();
@@ -114,7 +175,6 @@ namespace USSDMiddleware.Core.Managers
                 // Extract configuration values from appsettings.
                 settings.GLCode = _configuration["ApiOptions:Zikora:FTGLCode"];
                 settings.NibssCode = _configuration["ApiOptions:Zikora:NibssCode"];
-                settings.FundTransferFee = decimal.Parse(_configuration["ApiOptions:Zikora:FundTransferFee"]);
 
                 Interfaces.Providers.IUssdProvider provider = _providerSelector.GetProvider(request.Provider);
                 var providerId = await provider.GetProviderId(_providerManager);
@@ -136,7 +196,7 @@ namespace USSDMiddleware.Core.Managers
                     {
                         decimal availableBalanceInKobo = availableBalance;
 
-                        if (availableBalanceInKobo < request.Amount)
+                        if (availableBalanceInKobo < (amountInKobo + feeInKobo))
                         {
                             return new InstantPayOutResponse
                             {
@@ -156,6 +216,7 @@ namespace USSDMiddleware.Core.Managers
                         NibssCode = settings.NibssCode,
                         ProviderId = providerId,
                         BankCode = settings.BankCode,
+                        Fee = feeInNaira,
                     };
 
                     var debitRequest = new DebitCustomerAccountRequest
@@ -163,8 +224,11 @@ namespace USSDMiddleware.Core.Managers
                         RetrievalReference = settings.RetrievalReference,
                         AccountNumber = request.SenderAccountNumber,
                         Amount = request.Amount, //Converted to kobo on the provider side
-                        Narration = $"Debit Customer account to {request.BeneficiaryName}",
-                        GLCode = _configuration["ApiOptions:Zikora:FTGLCode"]
+                        Narration = $"FUNDS TRANSFER to {request.BeneficiaryName}",
+                        //GLCode = _configuration["ApiOptions:Zikora:FTGLCode"]
+                        //GLCode = _configuration["ApiOptions:Zikora:FTGLCode"]
+                        GLCode = _apiOptions.Zikora.FTGLCode,
+                        Fee = feeInKobo, // Converted to kobo
                     };
 
                     CustomerDebit logdebitRequest = await LogCustomerDebit(customerDebit);
@@ -292,6 +356,7 @@ namespace USSDMiddleware.Core.Managers
             return await _instantPayOutRepository.LogInstantPayment(Builder<FundTransfer>.CreateNew()
                      .With(u => u.WalletCode = _configuration["ApiOptions:Zikora:WalletCode"])
                      .With(u => u.AccountNumber = request.AccountNumber)
+                     .With(u => u.SenderAccountNumber = request.SenderAccountNumber)
                      .With(u => u.BeneficiaryName = request.BeneficiaryName)
                      .With(u => u.SenderName = request.SenderName)
                      .With(u => u.BankCode = request.BankCode)
@@ -516,6 +581,19 @@ namespace USSDMiddleware.Core.Managers
             }
         }
 
-
+        //Get cumulative FundTransfer amount for aender account number today from the database
+        public async Task<decimal> GetCumulativeFundTransferToday(string senderAccountNumber)
+        {
+            try
+            {
+                var cumulativeAmount = await _instantPayOutRepository.GetCumulativeFundTransferToday(senderAccountNumber);
+                return cumulativeAmount;
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, $"An error occurred while trying to get cumulative fund transfer for {senderAccountNumber} today.");
+                throw new UssdMiddlewareException(ExceptionType.OPERATION_FAILED, "Failed to get cumulative fund transfer today.");
+            }
+        }
     }
 }

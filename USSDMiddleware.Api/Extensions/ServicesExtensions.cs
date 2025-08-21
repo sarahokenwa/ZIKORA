@@ -63,7 +63,7 @@ namespace USSDMiddleware.Api.Extensions
 
             //Configurations
 
-           // services.Configure<ApiOptions>(configuration.GetSection("ApiOptions"));
+            // services.Configure<ApiOptions>(configuration.GetSection("ApiOptions"));
 
             services.AddSingleton(configuration.GetSection("ApiOptions").Get<ApiOptions>());
 

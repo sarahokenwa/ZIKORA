@@ -6,5 +6,6 @@ namespace USSDMiddleware.Core.Interfaces.Repositories
     {
         Task<FundTransfer> LogInstantPayment(FundTransfer fundTransfer);
         Task<FundTransfer> UpdateInstantPayment(FundTransfer model, string providerId);
+        Task<decimal> GetCumulativeFundTransferToday(string senderAccountNumber);
     }
 }

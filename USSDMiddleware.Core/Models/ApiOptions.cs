@@ -15,8 +15,6 @@
         public decimal MerchantCharge { get; set; }
         public string WebHook {  get; set; }
         public string WalletType { get; set; }
-
-
     }
 
     public class ZikoraOptions
@@ -31,6 +29,16 @@
         public string AccountOfficerCode { get; set; }
         public string ProductCode { get; set; }
         public string BankCode { get; set; }
+        public string FTGLCode { get; set; }
+        public string BillsGLCode { get; set; }
+        public string NibssCode { get; set; }
+        public List<ChargeConfig> Charges { get; set; }
     }
 
+    public class ChargeConfig
+    {
+        public decimal FromAmount { get; set; }
+        public decimal ToAmount { get; set; }
+        public decimal Charge { get; set; }
+    }
 }

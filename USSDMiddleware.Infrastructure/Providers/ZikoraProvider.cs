@@ -396,9 +396,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                     model.AccountNumber,
                     model.Narration,
                     model.GLCode,
+                    model.Fee,
                     Amount = model.Amount * 100,
                     NibssCode = _configuration["ApiOptions:Zikora:NibssCode"],
-                    Fee = _configuration["ApiOptions:Zikora:FundTransferFee"],
                     token = authenticationToken,
                 };
 

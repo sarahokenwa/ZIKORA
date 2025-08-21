@@ -14,12 +14,12 @@ namespace USSDMiddleware.Infrastructure.Repositories
         private readonly DataEntities _dbContext;
         private readonly ILogger<InstantPayOutRepository> _log;
 
-
         public InstantPayOutRepository(DataEntities dbContext, ILogger<InstantPayOutRepository> log)
         {
             _dbContext = dbContext;
             _log = log;
         }
+
         public async Task<FundTransfer> LogInstantPayment(FundTransfer fundTransfer)
         {
             try
@@ -45,8 +45,6 @@ namespace USSDMiddleware.Infrastructure.Repositories
 
                 if (instantPayment != null)
                 {
-
-                    // instantPayment.requeryresponsecode = model.requeryresponsecode;
                     instantPayment.Code = model.Code;
                     instantPayment.Succeeded = model.Succeeded;
                     instantPayment.SessionId = model.SessionId;
@@ -63,5 +61,22 @@ namespace USSDMiddleware.Infrastructure.Repositories
             }
         }
 
+        public async Task<decimal> GetCumulativeFundTransferToday(string senderAccountNumber)
+        {
+            try
+            {
+                var today = DateTime.UtcNow.Date;
+                var totalAmount = await _dbContext.FundTransfers
+                    .Where(ft => ft.SenderAccountNumber.Equals(senderAccountNumber) && ft.CreatedOn.Date == today && ft.Succeeded)
+                    .SumAsync(ft => ft.Amount);
+
+                return totalAmount;
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, $"Failed to get cumulative fund transfer for today for account: {senderAccountNumber}");
+                throw new NotSuccessfulException(ex.Message);
+            }
+        }
     }
 }
