@@ -192,7 +192,7 @@ namespace USSDMiddleware.Core.Managers
                     var accountBalanceResponse = await provider.CheckAccountBalance(new BalanceEnquiryRequest { AccountNumber = request.SenderAccountNumber });
                     if (decimal.TryParse(accountBalanceResponse.AvailableBalance, out decimal availableBalance))
                     {
-                        decimal availableBalanceInKobo = availableBalance;
+                        decimal availableBalanceInKobo = availableBalance * 100;
 
                         if (availableBalanceInKobo < (amountInKobo + feeInKobo))
                         {
