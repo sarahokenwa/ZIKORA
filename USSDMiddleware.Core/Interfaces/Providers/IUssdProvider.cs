@@ -29,5 +29,6 @@ namespace USSDMiddleware.Core.Interfaces.Providers
         Task<UnFreezeCardResponse> UnFreezeCard(UnFreezeCardRequest request);
         Task<RequeryResponse> StatusQuery(ReQueryRequest model);
         Task<IntraBankTransferResponse> IntraBankTransfer(IntraBankTransferRequest model);
+        Task<SMSResponse?> SendSMS(SMSRequest request);
     }
 }

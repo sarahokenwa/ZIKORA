@@ -11,7 +11,7 @@ namespace USSDMiddleware.Api.Controllers
 {
     [Route("api/v1/user")]
     [ApiController]
-    [Authorize]
+    //[Authorize]
     public class UserController : ControllerBase
     {
 
@@ -23,7 +23,7 @@ namespace USSDMiddleware.Api.Controllers
 
         }
 
-        
+
         [HttpPost("create")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
         {
@@ -86,9 +86,36 @@ namespace USSDMiddleware.Api.Controllers
             {
                 Code = ResponseCodes.Successful,
                 Succeeded = result.Status,
-                Message= result.Message,
+                Message = result.Message,
                 Data = result
             });
+        }
+
+        // Initiate PIN reset
+        [HttpPost("pin-reset/initiate")]
+        public async Task<IActionResult> InitiatePinReset([FromBody] PinResetRequest request)
+        {
+            var result = await _userManager.InitiatePinReset(request);
+
+            if(result == null)
+            {
+                return BadRequest(new { Success = false, Message = "Failed to initiate PIN reset. Please check the provided details." });
+            }
+
+            return Ok(new { result.Message, result.Success});
+        }
+
+        // Complete PIN reset
+        [HttpPost("pin-reset/complete")]
+        public async Task<IActionResult> CompletePinReset([FromBody] CompletePinResetRequest request)
+        {
+            var result = await _userManager.VerifyOTPAndResetPin(request);
+            if (result == null)
+            {
+                return BadRequest(new { Success = false, Message = "Failed to complete PIN reset. Please check the provided details." });
+            }
+
+            return Ok(new { result.Message, result.Success });
         }
     }
 }

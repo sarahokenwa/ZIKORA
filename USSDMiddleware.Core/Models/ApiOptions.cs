@@ -35,6 +35,15 @@
         public decimal DailyLimitInKobo { get; set; }
         public decimal TransactionLimitInKobo { get; set; }
         public List<ChargeConfig> Charges { get; set; }
+        public int OTPValidityInMinutes { get; set; } = 10;
+        public string SMSProviderUrl { get; set; }
+        public string SMSEndpoint { get; set; }
+        public string SMSApiKey { get; set; } = default!;
+        public string SMSSenderId { get; set; } = default!;
+        public string SMSMessageTemplate { get; set; } = default!;
+        public string SMSType { get; set; } = default!;
+        public string Channel { get; set; } = default!;
+        public string ResetInstruction { get; set; } = default!;
     }
 
     public class ChargeConfig

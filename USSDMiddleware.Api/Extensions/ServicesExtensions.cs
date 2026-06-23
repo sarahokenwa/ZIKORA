@@ -67,6 +67,21 @@ namespace USSDMiddleware.Api.Extensions
 
             services.AddSingleton(configuration.GetSection("ApiOptions").Get<ApiOptions>());
 
+            // Register CyberPay API client
+            var zikoraSMSBaseUrl = configuration["ApiOptions:Zikora:SMSProviderUrl"];
+            if (string.IsNullOrWhiteSpace(zikoraSMSBaseUrl) || !Uri.TryCreate(zikoraSMSBaseUrl, UriKind.Absolute, out var zikoraSMSUri))
+            {
+                throw new InvalidOperationException("Configuration 'ApiOptions:Zikora:SMSProviderUrl' is missing or is not a valid absolute URI.");
+            }
+
+            services.AddHttpClient("SMSProvider", client =>
+            {
+                client.BaseAddress = new Uri(zikoraSMSBaseUrl);
+                // add custom headers
+                //client.DefaultRequestHeaders.Add("IntegrationKey", configuration["Zikora:CyberPay:IntegrationKey"] ?? string.Empty);
+                //client.DefaultRequestHeaders.Add("ApiKey", configuration["Zikora:CyberPay:ApiKey"] ?? string.Empty);
+            });
+
             IServiceProvider serviceProvider = services.BuildServiceProvider();
 
             var hostEnvironment = (IWebHostEnvironment)serviceProvider.GetService(typeof(IWebHostEnvironment));

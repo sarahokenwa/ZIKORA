@@ -12,5 +12,7 @@ namespace USSDMiddleware.Core.Interfaces.Managers
         Task<List<UserAccountNumber>> GetAccountsByPhoneNumber(PhoneValidationRequest request);
         Task<AccountBalanceEnquiry> GetAccountBalance(AccountRequest request);
         Task<bool> ValidateTransactionPin(string transactionPin, string phoneNumber, string providerId);
+        Task<PinResetResponse> InitiatePinReset(PinResetRequest request); 
+        Task<PinResetResponse> VerifyOTPAndResetPin(CompletePinResetRequest request);
     }
 }

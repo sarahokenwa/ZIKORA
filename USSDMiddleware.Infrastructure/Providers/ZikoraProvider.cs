@@ -3,6 +3,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Serilog;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using USSDMiddleware.Core.Enums;
 using USSDMiddleware.Core.Exceptions;
 using USSDMiddleware.Core.Interfaces.Component;
@@ -23,17 +27,19 @@ namespace USSDMiddleware.Infrastructure.Providers
         private readonly IHttpService _httpService;
         private readonly ILogger<ZikoraProvider> _log;
         private readonly IConfiguration _configuration;
+        private readonly HttpClient _httpClient;
 
 
         public Core.Enums.Providers ProviderType => Core.Enums.Providers.ZIKORA;
 
         public ZikoraProvider(ApiOptions apiOptions, IHttpService httpService,
-            ILogger<ZikoraProvider> log, IConfiguration configuration)
+            ILogger<ZikoraProvider> log, IConfiguration configuration, IHttpClientFactory httpClientFactory)
         {
             _apiOptions = apiOptions;
             _httpService = httpService;
             _log = log;
             _configuration = configuration;
+            _httpClient = httpClientFactory.CreateClient("SMSProvider");
         }
 
         public async Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request)
@@ -1033,8 +1039,64 @@ namespace USSDMiddleware.Infrastructure.Providers
                 .Build();
         }
 
-    }
+        public async Task<SMSResponse?> SendSMS(SMSRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.PhoneNumber))
+            {
+                Log.Warning("Phone number is required for sending SMS.");
+                return new SMSResponse
+                {
+                    IsSuccess = false,
+                    ResponseMessage = "Phone number is required for sending SMS."
+                };
+            }
 
+            ZikoraSMSRequest sMSRequest = new ZikoraSMSRequest
+            {
+                api_key = _apiOptions.Zikora.SMSApiKey,
+                to = request.PhoneNumber,
+                from = _apiOptions.Zikora.SMSSenderId,
+                sms = request.Message, 
+                channel = _apiOptions.Zikora.Channel,
+                type = _apiOptions.Zikora.SMSType
+            };
+
+
+            var content = new StringContent(
+                JsonConvert.SerializeObject(request),
+                Encoding.UTF8,
+                "application/json");
+
+            var endpoint = _apiOptions.Zikora.SMSEndpoint;
+
+            _log.LogInformation($"Send SMS Url: {endpoint}");
+            _log.LogInformation($"Send SMS Request Body: {JsonConvert.SerializeObject(sMSRequest)}");
+
+            var response = await _httpClient.PostAsync(
+                endpoint,
+                content);
+
+            _log.LogInformation($"Send SMS Response code: {response.StatusCode}");
+
+            var responseString = await response.Content.ReadAsStringAsync();
+
+            _log.LogInformation($"Send SMS Response body: {responseString}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+            var smsResponse = JsonConvert.DeserializeObject<ZikoraSMSResponse>(responseString);
+
+            _log.LogInformation($"Send SMS result: {JsonConvert.SerializeObject(smsResponse)}");
+
+            return new SMSResponse
+            {
+                IsSuccess = smsResponse != null && smsResponse.code.Equals("ok", StringComparison.OrdinalIgnoreCase),
+                ResponseMessage = smsResponse?.message ?? "Send SMS completed"
+            };
+        }
+    }
 }
 
 
