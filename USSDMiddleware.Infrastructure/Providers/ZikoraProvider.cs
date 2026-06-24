@@ -1061,16 +1061,17 @@ namespace USSDMiddleware.Infrastructure.Providers
                 type = _apiOptions.Zikora.SMSType
             };
 
+            var json = System.Text.Json.JsonSerializer.Serialize(sMSRequest);
 
             var content = new StringContent(
-                JsonConvert.SerializeObject(request),
+                json,
                 Encoding.UTF8,
                 "application/json");
 
             var endpoint = _apiOptions.Zikora.SMSEndpoint;
 
             _log.LogInformation($"Send SMS Url: {endpoint}");
-            _log.LogInformation($"Send SMS Request Body: {JsonConvert.SerializeObject(sMSRequest)}");
+            _log.LogInformation($"Send SMS Request Body: {json}");
 
             var response = await _httpClient.PostAsync(
                 endpoint,
