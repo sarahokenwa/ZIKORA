@@ -99,10 +99,29 @@ namespace USSDMiddleware.Api.Controllers
 
             if(result == null)
             {
-                return BadRequest(new { Success = false, Message = "Failed to initiate PIN reset. Please check the provided details." });
+                return BadRequest(new Response<PinResetResponse?>()
+                {
+                    Code = ResponseCodes.BadRequest,
+                    Succeeded = result?.Success ?? false,
+                    Message = result?.Message ?? "Failed to initiate PIN reset. Please check the provided details.",
+                    Data = result
+                });
             }
 
-            return Ok(new { result.Message, result.Success});
+            //if(result == null)
+            //{
+            //    return BadRequest(new { Success = false, Message = "Failed to initiate PIN reset. Please check the provided details." });
+            //}
+
+            return Ok(new Response<PinResetResponse?>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = result?.Success ?? false,
+                Message = result?.Message ?? "Initiated PIN reset successfully.",
+                Data = result
+            });
+
+            //return Ok(new { result.Message, result.Success});
         }
 
         // Complete PIN reset
@@ -110,12 +129,30 @@ namespace USSDMiddleware.Api.Controllers
         public async Task<IActionResult> CompletePinReset([FromBody] CompletePinResetRequest request)
         {
             var result = await _userManager.VerifyOTPAndResetPin(request);
+
             if (result == null)
             {
-                return BadRequest(new { Success = false, Message = "Failed to complete PIN reset. Please check the provided details." });
+                return BadRequest(new Response<PinResetResponse?>()
+                {
+                    Code = ResponseCodes.BadRequest,
+                    Succeeded = result?.Success ?? false,
+                    Message = result?.Message ?? "Failed to complete PIN reset. Please check the provided details.",
+                    Data = result
+                });
             }
 
-            return Ok(new { result.Message, result.Success });
+            //if (result == null)
+            //{
+            //    return BadRequest(new { Success = false, Message = "Failed to complete PIN reset. Please check the provided details." });
+            //}
+
+            return Ok(new Response<PinResetResponse?>()
+            {
+                Code = ResponseCodes.Successful,
+                Succeeded = result?.Success ?? false,
+                Message = result?.Message ?? "Completed PIN reset successfully.",
+                Data = result
+            });
         }
     }
 }
