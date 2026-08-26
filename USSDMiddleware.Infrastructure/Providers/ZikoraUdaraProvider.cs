@@ -1,12 +1,11 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using USSDMiddleware.Core.Exceptions;
+using USSDMiddleware.Core.Interfaces.Providers;
 using USSDMiddleware.Core.Models;
 using USSDMiddleware.Core.Models.Accounts;
 using USSDMiddleware.Core.Models.Providers.Zikora;
@@ -18,7 +17,7 @@ using USSDMiddleware.Core.Models.V2.Response;
 
 namespace USSDMiddleware.Infrastructure.Providers
 {
-    public class ZikoraUdaraProvider
+    public class ZikoraUdaraProvider 
     {
         private readonly HttpClient _httpClient;
         private readonly UdaraOptions _options;
@@ -35,8 +34,8 @@ namespace USSDMiddleware.Infrastructure.Providers
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
 
+        public Core.Enums.Providers ProviderType => Core.Enums.Providers.UDARA;
 
-        //public Core.Enums.Providers ProviderType => Core.Enums.Providers.ZIKO RA;
 
         public ZikoraUdaraProvider(HttpClient httpClient,
         IOptions<UdaraOptions> options,
@@ -81,17 +80,14 @@ namespace USSDMiddleware.Infrastructure.Providers
                 httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
                 httpRequest.Content = JsonContent.Create(payload, options: JsonOptions);
 
-                _log.LogInformation("Creating customer + account. Reference: {Reference}, BVN: {Bvn}",
-                    reference, req.BVN);
+                _log.LogInformation("Creating customer + account. Reference: {Reference}, BVN: {Bvn}", reference, MaskBvn(req.BVN));
 
                 using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
                 var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
-                _log.LogInformation("CreateCustomerAccount response: {StatusCode} {Body}",
-                    response.StatusCode, body);
+                _log.LogInformation("CreateCustomerAccount response: {StatusCode} {Body}", response.StatusCode, body);
 
-                var udaraResponse = System.Text.Json.JsonSerializer
-                    .Deserialize<UdaraCreateAccountResponseModel>(body, JsonOptions);
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraCreateAccountResponseModel>(body, JsonOptions);
 
                 return _mapper.MapToAccountCreationResponse(udaraResponse, reference, fullName);
             }
@@ -122,37 +118,24 @@ namespace USSDMiddleware.Infrastructure.Providers
                 }
 
                 var payload = _mapper.MapToValidateBvnRequest(bvn);
-               // var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync(cancellationToken);
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/Operations/v1/KYC/ValidateBVN");
-              //  httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
                 httpRequest.Content = JsonContent.Create(payload, options: JsonOptions);
 
-                _log.LogInformation("Validating BVN: {Bvn}", bvn);
+                _log.LogInformation("Validating BVN: {Bvn}", MaskBvn(bvn));
 
                 using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
                 var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
                 _log.LogInformation("ValidateBVN response: {StatusCode} {Body}", response.StatusCode, body);
 
-                var udaraResponse = System.Text.Json.JsonSerializer
-                    .Deserialize<UdaraValidateBvnResponseModel>(body, JsonOptions);
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraValidateBvnResponseModel>(body, JsonOptions);
 
                 var result = _mapper.MapToBvnInfoResponse(udaraResponse);
-
-                // Optional: keep the phone number check if you still need it
-                // if (result.isBvnValid && 
-                //     !string.Equals(result.bvnDetails?.phoneNumber, phoneNo, StringComparison.OrdinalIgnoreCase))
-                // {
-                //     return new BvnInfoResponse
-                //     {
-                //         RequestStatus = false,
-                //         isBvnValid = false,
-                //         ResponseMessage = "Bvn does not belong to this phone number!"
-                //     };
-                // }
 
                 return result;
             }
@@ -196,8 +179,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Balance enquiry response: {StatusCode} {Body}", response.StatusCode, body);
 
-                var udaraResponse = System.Text.Json.JsonSerializer
-                    .Deserialize<UdaraBalanceEnquiryResponseModel>(body, JsonOptions);
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraBalanceEnquiryResponseModel>(body, JsonOptions);
 
                 return _mapper.MapToBalanceEnquiryResponse(udaraResponse);
             }
@@ -218,9 +200,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                 if (string.IsNullOrWhiteSpace(phoneNumber))
                 {
                     return new List<GetAccountResponse>
-            {
-                new GetAccountResponse { Message = "Phone number is required." }
-            };
+                    {
+                        new GetAccountResponse { Message = "Phone number is required." }
+                    };
                 }
 
                 var token = await GetAccessTokenAsync(cancellationToken);
@@ -237,11 +219,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                 using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
                 var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
-                _log.LogInformation("GetAccountsByPhoneNumber response: {StatusCode} {Body}",
-                    response.StatusCode, body);
+                _log.LogInformation("GetAccountsByPhoneNumber response: {StatusCode} {Body}", response.StatusCode, body);
 
-                var udaraResponse = System.Text.Json.JsonSerializer
-                    .Deserialize<UdaraGetAccountsByPhoneResponseModel>(body, JsonOptions);
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraGetAccountsByPhoneResponseModel>(body, JsonOptions);
 
                 return _mapper.MapToGetAccountResponseList(udaraResponse, phoneNumber);
             }
@@ -249,12 +229,12 @@ namespace USSDMiddleware.Infrastructure.Providers
             {
                 _log.LogError(ex, "Error retrieving accounts by phone number");
                 return new List<GetAccountResponse>
-        {
-            new GetAccountResponse
-            {
-                Message = $"No customer found with phone number {phoneNumber}."
-            }
-        };
+                {
+                    new GetAccountResponse
+                    {
+                        Message = $"No customer found with phone number {phoneNumber}."
+                    }
+                };
             }
         }
 
@@ -285,11 +265,9 @@ namespace USSDMiddleware.Infrastructure.Providers
                 using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
                 var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
-                _log.LogInformation("GetUserByAccountNumber response: {StatusCode} {Body}",
-                    response.StatusCode, body);
+                _log.LogInformation("GetUserByAccountNumber response: {StatusCode} {Body}", response.StatusCode, body);
 
-                var udaraResponse = System.Text.Json.JsonSerializer
-                    .Deserialize<UdaraGetByAccountNumberResponseModel>(body, JsonOptions);
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraGetByAccountNumberResponseModel>(body, JsonOptions);
 
                 return _mapper.MapToGetUserByAccountNumberResponse(udaraResponse);
             }
@@ -334,8 +312,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Block account response: {StatusCode} {Body}", response.StatusCode, body);
 
-                var udaraResponse = System.Text.Json.JsonSerializer
-                    .Deserialize<UdaraDeactivateAccountResponseModel>(body, JsonOptions);
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraDeactivateAccountResponseModel>(body, JsonOptions);
 
                 return _mapper.MapToBlockAccountResponse(udaraResponse);
             }
@@ -381,8 +358,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("DeactivatePND response: {StatusCode} {Body}", response.StatusCode, body);
 
-                var udaraResponse = System.Text.Json.JsonSerializer
-                    .Deserialize<UdaraDeactivateAccountResponseModel>(body, JsonOptions);
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraDeactivateAccountResponseModel>(body, JsonOptions);
 
                 var result = _mapper.MapToDeactivatePndResponse(udaraResponse);
 
@@ -406,9 +382,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        public async Task<DebitCustomerAccountResponse> DebitCustomerAccount(
-    DebitCustomerAccountRequest model,
-    CancellationToken cancellationToken = default)
+        public async Task<DebitCustomerAccountResponse> DebitCustomerAccount(DebitCustomerAccountRequest model, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -431,14 +405,12 @@ namespace USSDMiddleware.Infrastructure.Providers
                 httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
                 httpRequest.Content = JsonContent.Create(payload, options: JsonOptions);
 
-                _log.LogInformation("Debiting account: {AccountNumber}, Amount: {Amount}",
-                    model.AccountNumber, model.Amount);
+                _log.LogInformation("Debiting account: {AccountNumber}, Amount: {Amount}", model.AccountNumber, model.Amount);
 
                 using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
                 var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
-                _log.LogInformation("DebitCustomerAccount response: {StatusCode} {Body}",
-                    response.StatusCode, body);
+                _log.LogInformation("DebitCustomerAccount response: {StatusCode} {Body}", response.StatusCode, body);
 
                 var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraPostingResponseModel>(body, JsonOptions);
 
@@ -531,12 +503,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var token = await GetAccessTokenAsync(cancellationToken);
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
-                // transactionRef = value returned as InstrumentNumber / reference from the transfer
-                // apiRequestRef  = the request-reference you sent when doing the original transfer
                 var url = $"/api/Transfer/v1/TSQ?transactionRef={Uri.EscapeDataString(model.RetrievalReference)}";
-
-                // If you also stored the original request-reference, append it:
-                // url += $"&apiRequestRef={Uri.EscapeDataString(originalRequestRef)}";
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Get, url);
                 httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -549,8 +516,7 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("StatusQuery response: {StatusCode} {Body}", response.StatusCode, body);
 
-                var udaraResponse = System.Text.Json.JsonSerializer
-                    .Deserialize<UdaraTsqResponseModel>(body, JsonOptions);
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraTsqResponseModel>(body, JsonOptions);
 
                 return _mapper.MapToRequeryResponse(udaraResponse);
             }
@@ -570,18 +536,23 @@ namespace USSDMiddleware.Infrastructure.Providers
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(request?.AccountNo))
+                if (string.IsNullOrWhiteSpace(request?.AccountNo) &&
+                    string.IsNullOrWhiteSpace(request?.CustomerId))
                 {
                     return new GetCustomerCardResponse
                     {
                         IsSuccessful = false,
-                        ResponseDescription = "Account number is required.",
+                        ResponseDescription = "Account number or customer ID is required.",
                         Cards = null
                     };
                 }
 
-                // 1. Resolve customerId from account number
-                var customerId = await GetCustomerIdByAccountNumberAsync(request.AccountNo, cancellationToken);
+                var customerId = request.CustomerId;
+                if (string.IsNullOrWhiteSpace(customerId))
+                {
+                    customerId = await GetCustomerIdByAccountNumberAsync(request.AccountNo, cancellationToken);
+                }
+
                 if (string.IsNullOrWhiteSpace(customerId))
                 {
                     return new GetCustomerCardResponse
@@ -592,7 +563,6 @@ namespace USSDMiddleware.Infrastructure.Providers
                     };
                 }
 
-                // 2. Get cards by customerId
                 var token = await GetAccessTokenAsync(cancellationToken);
                 var reference = Guid.NewGuid().ToString("N")[..20];
                 var url = $"/api/Card/v1/Interswitch/GetCardAccountByCustomerId?customerId={customerId}";
@@ -601,8 +571,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
 
-                _log.LogInformation("GetCustomerCards. AccountNo: {AccountNo}, CustomerId: {CustomerId}",
-                    request.AccountNo, customerId);
+                _log.LogInformation("GetCustomerCards. AccountNo: {AccountNo}, CustomerId: {CustomerId}", request.AccountNo, customerId);
 
                 using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
                 var body = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -610,17 +579,14 @@ namespace USSDMiddleware.Infrastructure.Providers
                 _log.LogInformation("GetCustomerCards response: {StatusCode} {Body}",
                     response.StatusCode, body);
 
-                var udaraResponse = System.Text.Json.JsonSerializer
-                    .Deserialize<UdaraGetCardAccountResponseModel>(body, JsonOptions);
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraGetCardAccountResponseModel>(body, JsonOptions);
 
                 var result = _mapper.MapToGetCustomerCardResponse(udaraResponse);
 
-                // Optional: filter by account number if you only want cards for that account
+                // Optional: only cards for this account
                 if (result.IsSuccessful && result.Cards != null && !string.IsNullOrWhiteSpace(request.AccountNo))
                 {
-                    result.Cards = result.Cards
-                        .Where(c => string.Equals(c.AccountNumber, request.AccountNo, StringComparison.OrdinalIgnoreCase))
-                        .ToArray();
+                    result.Cards = result.Cards.Where(c => string.Equals(c.AccountNumber, request.AccountNo, StringComparison.OrdinalIgnoreCase)).ToArray();
                 }
 
                 return result;
@@ -631,7 +597,6 @@ namespace USSDMiddleware.Infrastructure.Providers
                 throw new OperationFailedException(ex.Message, ex);
             }
         }
-
         public async Task<FreezeCardResponse> FreezeCard(FreezeCardRequest request, CancellationToken cancellationToken = default)
         {
             try
@@ -663,23 +628,20 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var token = await GetAccessTokenAsync(cancellationToken);
                 var reference = request.Reference ?? Guid.NewGuid().ToString("N")[..20];
 
-                using var httpRequest = new HttpRequestMessage(
-                    HttpMethod.Put, "/api/Card/v1/Interswitch/UpdateCardStatus");
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Put, "/api/Card/v1/Interswitch/UpdateCardStatus");
 
                 httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
                 httpRequest.Content = JsonContent.Create(payload, options: JsonOptions);
 
-                _log.LogInformation("Freezing card. CardId: {CardId}, Account: {Account}",
-                    cardId, request.AccountNumber);
+                _log.LogInformation("Freezing card. CardId: {CardId}, Account: {Account}", cardId, request.AccountNumber);
 
                 using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
                 var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
                 _log.LogInformation("FreezeCard response: {StatusCode} {Body}", response.StatusCode, body);
 
-                var udaraResponse = System.Text.Json.JsonSerializer
-                    .Deserialize<UdaraUpdateCardStatusResponseModel>(body, JsonOptions);
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraUpdateCardStatusResponseModel>(body, JsonOptions);
 
                 return _mapper.MapToFreezeCardResponse(udaraResponse, reference);
             }
@@ -725,23 +687,20 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var token = await GetAccessTokenAsync(cancellationToken);
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
-                using var httpRequest = new HttpRequestMessage(
-                    HttpMethod.Put, "/api/Card/v1/Interswitch/UpdateCardStatus");
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Put, "/api/Card/v1/Interswitch/UpdateCardStatus");
 
                 httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
                 httpRequest.Content = JsonContent.Create(payload, options: JsonOptions);
 
-                _log.LogInformation("Unfreezing card. CardId: {CardId}, Account: {Account}",
-                    cardId, request.AccountNumber);
+                _log.LogInformation("Unfreezing card. CardId: {CardId}, Account: {Account}", cardId, request.AccountNumber);
 
                 using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
                 var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
                 _log.LogInformation("UnFreezeCard response: {StatusCode} {Body}", response.StatusCode, body);
 
-                var udaraResponse = System.Text.Json.JsonSerializer
-                    .Deserialize<UdaraUpdateCardStatusResponseModel>(body, JsonOptions);
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraUpdateCardStatusResponseModel>(body, JsonOptions);
 
                 return _mapper.MapToUnFreezeCardResponse(udaraResponse, reference);
             }
@@ -755,11 +714,6 @@ namespace USSDMiddleware.Infrastructure.Providers
                 };
             }
         }
-
-        /// <summary>
-        /// Uses the existing getbyaccountnumber endpoint to obtain customerID.
-        /// </summary>
-
 
         private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
         {
@@ -790,12 +744,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             using var doc = JsonDocument.Parse(content);
             var root = doc.RootElement;
 
-            _cachedToken = root.GetProperty("accessToken").GetString()
-                ?? throw new InvalidOperationException("accessToken not found in response.");
+            _cachedToken = root.GetProperty("accessToken").GetString() ?? throw new InvalidOperationException("accessToken not found in response.");
 
-            var validitySec = root.TryGetProperty("tokenValiditySec", out var validity)
-                ? validity.GetInt64()
-                : 3600;
+            var validitySec = root.TryGetProperty("tokenValiditySec", out var validity) ? validity.GetInt64() : 3600;
 
             _tokenExpiresAt = DateTimeOffset.UtcNow.AddSeconds(validitySec);
 
@@ -887,6 +838,16 @@ namespace USSDMiddleware.Infrastructure.Providers
 
             return byAccount?.CardId
                 ?? udaraResponse.Data.Data.FirstOrDefault()?.CardId;
+        }
+
+        private static string MaskBvn(string? bvn)
+        {
+            if (string.IsNullOrWhiteSpace(bvn))
+                return "****";
+
+            return bvn.Length <= 4
+                ? "****"
+                : new string('*', bvn.Length - 4) + bvn[^4..];
         }
     }
 }

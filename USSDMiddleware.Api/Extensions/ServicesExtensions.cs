@@ -57,8 +57,7 @@ namespace USSDMiddleware.Api.Extensions
             services.AddScoped<UssdProviderSelector>();
             services.AddScoped<IPayOutService, PayOutService>();
             services.AddScoped<IBackgroundService, HangfireBackgroundService>();
-
-
+          //  services.AddScoped<IUssdProvider, ZikoraUdaraProvider>();
 
             // services.AddSingleton<ILogService, SerilogService>();
 
@@ -97,8 +96,7 @@ namespace USSDMiddleware.Api.Extensions
             services.AddHttpClient<ZikoraUdaraProvider>(client =>
             {
                 client.BaseAddress = new Uri(configuration["Udara:BaseUrl"]!);
-                client.DefaultRequestHeaders.Accept.Add(
-                    new MediaTypeWithQualityHeaderValue("application/json"));
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             });
         }
 
