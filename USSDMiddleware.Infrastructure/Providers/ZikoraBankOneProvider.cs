@@ -20,20 +20,20 @@ using USSDMiddleware.Core.Models.ResponseModel;
 
 namespace USSDMiddleware.Infrastructure.Providers
 {
-    public class ZikoraProvider : IUssdProvider
+    public class ZikoraBankOneProvider : IUssdProvider
     {
         private readonly ApiOptions _apiOptions;
 
         private readonly IHttpService _httpService;
-        private readonly ILogger<ZikoraProvider> _log;
+        private readonly ILogger<ZikoraBankOneProvider> _log;
         private readonly IConfiguration _configuration;
         private readonly HttpClient _httpClient;
 
 
         public Core.Enums.Providers ProviderType => Core.Enums.Providers.ZIKORA;
 
-        public ZikoraProvider(ApiOptions apiOptions, IHttpService httpService,
-            ILogger<ZikoraProvider> log, IConfiguration configuration, IHttpClientFactory httpClientFactory)
+        public ZikoraBankOneProvider(ApiOptions apiOptions, IHttpService httpService,
+            ILogger<ZikoraBankOneProvider> log, IConfiguration configuration, IHttpClientFactory httpClientFactory)
         {
             _apiOptions = apiOptions;
             _httpService = httpService;

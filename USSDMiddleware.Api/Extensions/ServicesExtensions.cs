@@ -1,15 +1,18 @@
-﻿using USSDMiddleware.Core.Interfaces.Component;
-using USSDMiddleware.Core.Interfaces.Providers;
-using USSDMiddleware.Core.Models;
+﻿using Newtonsoft.Json;
+using System.Net.Http.Headers;
+using USSDMiddleware.Core.Interfaces.Component;
+using USSDMiddleware.Core.Interfaces.ExternalServices;
 using USSDMiddleware.Core.Interfaces.Managers;
-using USSDMiddleware.Core.Managers;
+using USSDMiddleware.Core.Interfaces.Providers;
 using USSDMiddleware.Core.Interfaces.Repositories;
-using USSDMiddleware.Infrastructure.Repositories;
-using USSDMiddleware.Infrastructure.Providers;
+using USSDMiddleware.Core.Managers;
+using USSDMiddleware.Core.Models;
+using USSDMiddleware.Core.Models.V2;
+using USSDMiddleware.Core.Models.V2.Mapper;
 using USSDMiddleware.Core.Services;
 using USSDMiddleware.Core.Utilities;
-using Newtonsoft.Json;
-using USSDMiddleware.Core.Interfaces.ExternalServices;
+using USSDMiddleware.Infrastructure.Providers;
+using USSDMiddleware.Infrastructure.Repositories;
 
 namespace USSDMiddleware.Api.Extensions
 {
@@ -49,7 +52,7 @@ namespace USSDMiddleware.Api.Extensions
             //Third party service
             #region service
             services.AddHttpClient<IHttpService, HttpServiceUtil>();
-            services.AddScoped<IUssdProvider, ZikoraProvider>();
+            services.AddScoped<IUssdProvider, ZikoraBankOneProvider>();
             services.AddScoped<ICyberPayProvider, CyberPayProvider>();
             services.AddScoped<UssdProviderSelector>();
             services.AddScoped<IPayOutService, PayOutService>();
@@ -85,7 +88,18 @@ namespace USSDMiddleware.Api.Extensions
             IServiceProvider serviceProvider = services.BuildServiceProvider();
 
             var hostEnvironment = (IWebHostEnvironment)serviceProvider.GetService(typeof(IWebHostEnvironment));
-            services.AddDistributedMemoryCache(); 
+            services.AddDistributedMemoryCache();
+
+            services.Configure<UdaraOptions>(configuration.GetSection(UdaraOptions.SectionName));
+
+            services.AddSingleton<UdaraMapper>();
+
+            services.AddHttpClient<ZikoraUdaraProvider>(client =>
+            {
+                client.BaseAddress = new Uri(configuration["Udara:BaseUrl"]!);
+                client.DefaultRequestHeaders.Accept.Add(
+                    new MediaTypeWithQualityHeaderValue("application/json"));
+            });
         }
 
         public static T ToModel<T>(this T value, string val)
