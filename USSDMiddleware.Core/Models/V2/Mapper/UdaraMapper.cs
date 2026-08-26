@@ -430,5 +430,36 @@ namespace USSDMiddleware.Core.Models.V2.Mapper
             };
         }
 
+        public GetCustomerCardResponse MapToGetCustomerCardResponse(UdaraGetCardAccountResponseModel? source)
+        {
+            if (source is null || !source.Status || source.Data?.Data is null)
+            {
+                return new GetCustomerCardResponse
+                {
+                    IsSuccessful = false,
+                    ResponseDescription = source?.Message ?? "No cards found.",
+                    Cards = null
+                };
+            }
+
+            var cards = source.Data.Data.Select(item => new Card
+            {
+                AccountNumber = item.AccountNumber ?? item.Card?.AccountNumber,
+                CardPAN = item.Card?.MaskedPan,
+                LinkedDate = (item.Card?.IssuedDate ?? item.Card?.RequestDate) ?? DateTime.MinValue,
+                ExpiryDate = item.Card?.ExpiryDate ?? DateTime.MinValue,
+                SerialNo = item.Card?.SerialNumber,
+                NameOnCard = item.NameOnCard ?? item.Card?.NameOnCard,
+                Status = item.Status ?? item.Card?.Status
+            }).ToArray();
+
+            return new GetCustomerCardResponse
+            {
+                IsSuccessful = true,
+                ResponseDescription = source.Message ?? "Cards retrieved successfully.",
+                Cards = cards
+            };
+        }
+
     }
 }

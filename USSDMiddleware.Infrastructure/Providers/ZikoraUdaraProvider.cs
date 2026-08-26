@@ -559,6 +559,77 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
+        public async Task<GetCustomerCardResponse> GetCustomerCards(GetCustomerCardRequest request, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request?.AccountNo))
+                {
+                    return new GetCustomerCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseDescription = "Account number is required.",
+                        Cards = null
+                    };
+                }
+
+                // 1. Resolve customerId from account number
+                var customerId = await GetCustomerIdByAccountNumberAsync(request.AccountNo, cancellationToken);
+                if (string.IsNullOrWhiteSpace(customerId))
+                {
+                    return new GetCustomerCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseDescription = "Unable to resolve customer for this account.",
+                        Cards = null
+                    };
+                }
+
+                // 2. Get cards by customerId
+                var token = await GetAccessTokenAsync(cancellationToken);
+                var reference = Guid.NewGuid().ToString("N")[..20];
+                var url = $"/api/Card/v1/Interswitch/GetCardAccountByCustomerId?customerId={customerId}";
+
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Get, url);
+                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
+
+                _log.LogInformation("GetCustomerCards. AccountNo: {AccountNo}, CustomerId: {CustomerId}",
+                    request.AccountNo, customerId);
+
+                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                _log.LogInformation("GetCustomerCards response: {StatusCode} {Body}",
+                    response.StatusCode, body);
+
+                var udaraResponse = System.Text.Json.JsonSerializer
+                    .Deserialize<UdaraGetCardAccountResponseModel>(body, JsonOptions);
+
+                var result = _mapper.MapToGetCustomerCardResponse(udaraResponse);
+
+                // Optional: filter by account number if you only want cards for that account
+                if (result.IsSuccessful && result.Cards != null && !string.IsNullOrWhiteSpace(request.AccountNo))
+                {
+                    result.Cards = result.Cards
+                        .Where(c => string.Equals(c.AccountNumber, request.AccountNo, StringComparison.OrdinalIgnoreCase))
+                        .ToArray();
+                }
+
+                return result;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogError(ex, "Get customer cards failed");
+                throw new OperationFailedException(ex.Message, ex);
+            }
+        }
+
+        /// <summary>
+        /// Uses the existing getbyaccountnumber endpoint to obtain customerID.
+        /// </summary>
+      
+
         private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
         {
             if (!string.IsNullOrEmpty(_cachedToken) &&
@@ -610,6 +681,40 @@ namespace USSDMiddleware.Infrastructure.Providers
                 "IssueCard only accepts cardId. Need the endpoint that creates the card first.");
 
             return Task.FromResult<string?>(null);
+        }
+
+        private async Task<string?> GetCustomerIdByAccountNumberAsync(string accountNumber, CancellationToken cancellationToken)
+        {
+            var token = await GetAccessTokenAsync(cancellationToken);
+            var reference = Guid.NewGuid().ToString("N")[..20];
+            var url = $"/api/account/v1/getbyaccountnumber?AccountNumber={accountNumber}";
+
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Get, url);
+            httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
+
+            using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+
+            if (!root.TryGetProperty("status", out var statusProp) || !statusProp.GetBoolean())
+                return null;
+
+            if (!root.TryGetProperty("data", out var data))
+                return null;
+
+            if (data.TryGetProperty("customerID", out var customerIdProp))
+                return customerIdProp.GetString();
+
+            if (data.TryGetProperty("customerId", out var customerIdProp2))
+                return customerIdProp2.GetString();
+
+            return null;
         }
     }
 }
