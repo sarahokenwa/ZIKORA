@@ -7,7 +7,7 @@
         public string BaseUrl { get; set; } = string.Empty;
         public string ClientId { get; set; } = string.Empty;
         public string ClientSecret { get; set; } = string.Empty;
-        public string TokenEndpoint { get; set; } = "/api/auth/v1/token";
+        public string TokenEndpoint { get; set; } 
         public string DefaultBranchCode { get; set; } = string.Empty;
         public string DefaultAccountOfficerStaffId { get; set; } = string.Empty;
         public string DefaultProductCode { get; set; } = string.Empty;

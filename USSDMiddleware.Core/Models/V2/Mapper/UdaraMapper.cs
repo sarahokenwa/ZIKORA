@@ -5,6 +5,7 @@ using USSDMiddleware.Core.Models.Request;
 using USSDMiddleware.Core.Models.ResponseModel;
 using USSDMiddleware.Core.Models.V2.Request;
 using USSDMiddleware.Core.Models.V2.Response;
+using static USSDMiddleware.Core.Models.V2.Request.UdaraCreateAccountRequestModel;
 
 namespace USSDMiddleware.Core.Models.V2.Mapper
 {
@@ -18,73 +19,75 @@ namespace USSDMiddleware.Core.Models.V2.Mapper
         }
 
 
-        public UdaraCreateAccountRequestModel MapToCreateAccountRequest(AccountCreationRequest source, string customerId, string reference)
+        public UdaraCreateCustomerAccountRequest MapToCreateCustomerAccountRequest(AccountCreationRequest source, BvnDetails bvnData)
         {
-            return new UdaraCreateAccountRequestModel
-            {
-                CustomerID = customerId,
-                AccountName = string.IsNullOrWhiteSpace(source.AccountName)? $"{source.FirstName} {source.LastName}".Trim()  : source.AccountName,
-                ReferenceNumber = reference,
-                ProductCode = string.IsNullOrWhiteSpace(source.ProductCode) ? _options.DefaultProductCode : source.ProductCode,
+            var firstName = !string.IsNullOrWhiteSpace(bvnData.FirstName) ? bvnData.FirstName : source.FirstName;
+            var lastName = !string.IsNullOrWhiteSpace(bvnData.LastName) ? bvnData.LastName : source.LastName;
+            var otherNames = !string.IsNullOrWhiteSpace(bvnData.OtherNames) ? bvnData.OtherNames : source.OtherNames;
 
+            var accountName = !string.IsNullOrWhiteSpace(source.AccountName)
+                ? source.AccountName
+                : $"{firstName} {lastName}".Trim();
+
+            string? dob = null;
+            if (!string.IsNullOrWhiteSpace(bvnData.DOB) && DateTime.TryParse(bvnData.DOB, out var bvnDob))
+                dob = bvnDob.ToString("yyyy-MM-dd");
+            else if (!string.IsNullOrWhiteSpace(source.DateOfBirth) && DateTime.TryParse(source.DateOfBirth, out var reqDob))
+                dob = reqDob.ToString("yyyy-MM-dd");
+
+            return new UdaraCreateCustomerAccountRequest
+            {
+                ReferenceNumber = !string.IsNullOrWhiteSpace(source.AccountOpeningTrackingRef)
+                    ? source.AccountOpeningTrackingRef
+                    : source.TransactionTrackingRef,
+
+                FirstName = firstName ?? string.Empty,
+                LastName = lastName ?? string.Empty,
+                OtherNames = otherNames,
+                AccountName = accountName,
+                Bvn = bvnData.BVN ?? source.BVN,
+                PhoneNumber = !string.IsNullOrWhiteSpace(bvnData.phoneNumber) ? bvnData.phoneNumber : source.PhoneNo,
+                Email = !string.IsNullOrWhiteSpace(bvnData.Email) ? bvnData.Email : source.Email,
+                DateOfBirth = dob,
+                Gender = source.Gender is 1 or 2 ? source.Gender : null,
+
+                BranchCode = _options.DefaultBranchCode,
+                ProductCode = string.IsNullOrWhiteSpace(source.ProductCode)
+                    ? _options.DefaultProductCode
+                    : source.ProductCode,
                 AccountOfficerStaffID = string.IsNullOrWhiteSpace(source.AccountOfficerCode)
                     ? _options.DefaultAccountOfficerStaffId
                     : source.AccountOfficerCode,
-
-                BranchCode = _options.DefaultBranchCode,
                 AccountTierLevel = ParseAccountTier(source.AccountTier),
                 AccessLevel = _options.DefaultAccessLevel,
                 AccountType = _options.DefaultAccountType,
                 AccountStatus = _options.DefaultAccountStatus,
-                StatementDeliveryMode = _options.DefaultStatementDeliveryMode,
-                StatementDeliveryFrequency = _options.DefaultStatementDeliveryFrequency,
                 MinimumBalanceRequired = _options.DefaultMinimumBalanceRequired,
                 CategoryOfAccount = _options.DefaultCategoryOfAccount,
                 SectorCode = _options.DefaultSectorCode,
-
                 EnableEmailNotification = true,
                 EnableSMSNotification = true,
-                GroupConnectionID = string.Empty,
                 IsMinor = false
             };
         }
-
-        public AccountCreationResponse MapToAccountCreationResponse(UdaraCreateAccountResponseModel? source, string reference, string? customerId = null, string? fullName = null)
+        public AccountCreationResponse MapToAccountCreationResponse(UdaraCreateAccountResponseModel? source, string reference, string? fullName = null)
         {
-            if (source is null)
+            if (source is null || !source.Status)
             {
                 return new AccountCreationResponse(
                     reference: reference,
-                    customerId: customerId,
+                    customerId: null,
                     accountNumber: null,
                     fullName: fullName,
-                    message: "Invalid response from provider.");
-            }
-
-            if (!source.Status)
-            {
-                return new AccountCreationResponse(
-                    reference: reference,
-                    customerId: customerId,
-                    accountNumber: null,
-                    fullName: fullName,
-                    message: string.IsNullOrWhiteSpace(source.Message) ? "Account creation failed."  : source.Message);
+                    message: source?.Message ?? "Account creation failed.");
             }
 
             return new AccountCreationResponse(
                 reference: reference,
-                customerId: customerId,
+                customerId: source.Data?.CustomerID,
                 accountNumber: source.Data?.AccountNumber,
                 fullName: fullName,
-                message: string.IsNullOrWhiteSpace(source.Message) ? "Account created successfully": source.Message);
-        }
-
-        private int ParseAccountTier(string? tier)
-        {
-            if (int.TryParse(tier, out var value) && value is >= 1 and <= 3)
-                return value;
-
-            return _options.DefaultAccountTier;
+                message: source.Message ?? "Account created successfully");
         }
 
         public string GetReference(AccountCreationRequest request)
@@ -460,6 +463,68 @@ namespace USSDMiddleware.Core.Models.V2.Mapper
                 Cards = cards
             };
         }
+
+        public UdaraUpdateCardStatusRequestModel MapToUpdateCardStatusRequest(string cardId, int status, string? reason)
+        {
+            return new UdaraUpdateCardStatusRequestModel
+            {
+                CardId = cardId,
+                Status = status,
+                Reason = reason
+            };
+        }
+
+        public FreezeCardResponse MapToFreezeCardResponse(UdaraUpdateCardStatusResponseModel? source, string? reference = null)
+        {
+            if (source is null)
+            {
+                return new FreezeCardResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "The attempt to freeze the card was unsuccessful."
+                };
+            }
+
+            return new FreezeCardResponse
+            {
+                IsSuccessful = source.Status,
+                ResponseMessage = string.IsNullOrWhiteSpace(source.Message)
+                    ? (source.Status ? "Operation Successful" : "The attempt to freeze the card was unsuccessful.")
+                    : source.Message,
+                TransactionReference = reference,
+                ResponseCode = source.Status ? "00" : null
+            };
+        }
+
+        public UnFreezeCardResponse MapToUnFreezeCardResponse(UdaraUpdateCardStatusResponseModel? source, string? reference = null)
+        {
+            if (source is null)
+            {
+                return new UnFreezeCardResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "The attempt to unfreeze the card was unsuccessful."
+                };
+            }
+
+            return new UnFreezeCardResponse
+            {
+                IsSuccessful = source.Status,
+                ResponseMessage = string.IsNullOrWhiteSpace(source.Message)
+                    ? (source.Status ? "Operation Successful" : "The attempt to unfreeze the card was unsuccessful.")
+                    : source.Message,
+                Reference = reference
+            };
+        }
+
+        private int ParseAccountTier(string? tier)
+        {
+            if (int.TryParse(tier, out var value) && value is >= 1 and <= 3)
+                return value;
+
+            return _options.DefaultAccountTier;
+        }
+
 
     }
 }

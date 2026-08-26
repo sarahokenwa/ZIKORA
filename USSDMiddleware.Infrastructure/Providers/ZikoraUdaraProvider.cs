@@ -49,56 +49,71 @@ namespace USSDMiddleware.Infrastructure.Providers
             _log = log;
         }
 
-        public async Task<AccountCreationResponse> CreateAccount(AccountCreationRequest request, CancellationToken cancellationToken = default)
+        public async Task<AccountCreationResponse> CreateAccount(AccountCreationRequest req, CancellationToken cancellationToken = default)
         {
             try
             {
-                // var customerId = await GetCustomerIdAsync(request, cancellationToken);
-                //if (string.IsNullOrWhiteSpace(customerId))
-                //{
-                //    return new AccountCreationResponse(
-                //        reference: _mapper.GetReference(request),
-                //        customerId: null,
-                //        accountNumber: null,
-                //        message: "Unable to resolve customer ID.");
-                //}
-                var customerId = "";
+                if (string.IsNullOrWhiteSpace(req?.BVN))
+                {
+                    return new AccountCreationResponse(
+                        reference: _mapper.GetReference(req),
+                        customerId: null,
+                        accountNumber: null,
+                        message: "BVN is required.");
+                }
 
-                var reference = _mapper.GetReference(request);
-                var payload = _mapper.MapToCreateAccountRequest(request, customerId, reference);
-               // var token = await GetAccessTokenAsync(cancellationToken);
+                // 1. Reuse existing BVN endpoint
+                var bvnInfo = await GetBvnInfo(req.BVN, req.PhoneNo, cancellationToken);
 
-               
-                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/account/v1/createaccount");
-               // httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                if (!bvnInfo.RequestStatus || !bvnInfo.isBvnValid || bvnInfo.bvnDetails is null)
+                {
+                    return new AccountCreationResponse(
+                        reference: _mapper.GetReference(req),
+                        customerId: null,
+                        accountNumber: null,
+                        message: bvnInfo.ResponseMessage ?? "BVN validation failed.");
+                }
+
+                // 2. Map request + BVN details → createcustomeraccount payload
+                var reference = _mapper.GetReference(req);
+                var payload = _mapper.MapToCreateCustomerAccountRequest(req, bvnInfo.bvnDetails);
+                var fullName = payload.AccountName;
+
+                // 3. Call createcustomeraccount
+                var token = await GetAccessTokenAsync(cancellationToken);
+
+                using var httpRequest = new HttpRequestMessage(
+                    HttpMethod.Post, "/api/account/v1/createcustomeraccount");
+
+                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
                 httpRequest.Content = JsonContent.Create(payload, options: JsonOptions);
 
-                _log.LogInformation("Creating account. Reference: {Reference}", reference);
+                _log.LogInformation("Creating customer + account. Reference: {Reference}, BVN: {Bvn}",
+                    reference, req.BVN);
 
                 using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
                 var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
-                _log.LogInformation("Create account response: {StatusCode} {Body}", response.StatusCode, body);
+                _log.LogInformation("CreateCustomerAccount response: {StatusCode} {Body}",
+                    response.StatusCode, body);
 
+                var udaraResponse = System.Text.Json.JsonSerializer
+                    .Deserialize<UdaraCreateAccountResponseModel>(body, JsonOptions);
 
-                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraCreateAccountResponseModel>(body, JsonOptions);
-                return _mapper.MapToAccountCreationResponse(
-                    udaraResponse,
-                    reference,
-                    customerId,
-                    request.AccountName);
+                return _mapper.MapToAccountCreationResponse(udaraResponse, reference, fullName);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _log.LogError(ex, "Error creating account");
                 return new AccountCreationResponse(
-                    reference: _mapper.GetReference(request),
+                    reference: _mapper.GetReference(req),
                     customerId: null,
                     accountNumber: null,
                     message: "Account creation failed.");
             }
         }
+
 
         public async Task<BvnInfoResponse> GetBvnInfo(string bvn, string phoneNo, CancellationToken cancellationToken = default)
         {
@@ -625,10 +640,134 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
+        public async Task<FreezeCardResponse> FreezeCard(FreezeCardRequest request, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request?.AccountNumber))
+                {
+                    return new FreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "Account number is required."
+                    };
+                }
+
+                var cardId = await ResolveCardIdAsync(request.AccountNumber, request.SerialNo, cancellationToken);
+                if (string.IsNullOrWhiteSpace(cardId))
+                {
+                    return new FreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "Unable to resolve card for this account."
+                    };
+                }
+
+                var payload = _mapper.MapToUpdateCardStatusRequest(
+                    cardId,
+                    status: 1, // Block = Freeze
+                    request.Reason);
+
+                var token = await GetAccessTokenAsync(cancellationToken);
+                var reference = request.Reference ?? Guid.NewGuid().ToString("N")[..20];
+
+                using var httpRequest = new HttpRequestMessage(
+                    HttpMethod.Put, "/api/Card/v1/Interswitch/UpdateCardStatus");
+
+                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
+                httpRequest.Content = JsonContent.Create(payload, options: JsonOptions);
+
+                _log.LogInformation("Freezing card. CardId: {CardId}, Account: {Account}",
+                    cardId, request.AccountNumber);
+
+                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                _log.LogInformation("FreezeCard response: {StatusCode} {Body}", response.StatusCode, body);
+
+                var udaraResponse = System.Text.Json.JsonSerializer
+                    .Deserialize<UdaraUpdateCardStatusResponseModel>(body, JsonOptions);
+
+                return _mapper.MapToFreezeCardResponse(udaraResponse, reference);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogError(ex, "Freeze card failed");
+                return new FreezeCardResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = $"An error occurred while freezing the card: {ex.Message}"
+                };
+            }
+        }
+
+        public async Task<UnFreezeCardResponse> UnFreezeCard(UnFreezeCardRequest request, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request?.AccountNumber))
+                {
+                    return new UnFreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "Account number is required."
+                    };
+                }
+
+                var cardId = await ResolveCardIdAsync(request.AccountNumber, request.SerialNo, cancellationToken);
+                if (string.IsNullOrWhiteSpace(cardId))
+                {
+                    return new UnFreezeCardResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "Unable to resolve card for this account."
+                    };
+                }
+
+                var payload = _mapper.MapToUpdateCardStatusRequest(
+                    cardId,
+                    status: 2, // Unblock = Unfreeze
+                    request.Reason);
+
+                var token = await GetAccessTokenAsync(cancellationToken);
+                var reference = Guid.NewGuid().ToString("N")[..20];
+
+                using var httpRequest = new HttpRequestMessage(
+                    HttpMethod.Put, "/api/Card/v1/Interswitch/UpdateCardStatus");
+
+                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
+                httpRequest.Content = JsonContent.Create(payload, options: JsonOptions);
+
+                _log.LogInformation("Unfreezing card. CardId: {CardId}, Account: {Account}",
+                    cardId, request.AccountNumber);
+
+                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                _log.LogInformation("UnFreezeCard response: {StatusCode} {Body}", response.StatusCode, body);
+
+                var udaraResponse = System.Text.Json.JsonSerializer
+                    .Deserialize<UdaraUpdateCardStatusResponseModel>(body, JsonOptions);
+
+                return _mapper.MapToUnFreezeCardResponse(udaraResponse, reference);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogError(ex, "Unfreeze card failed");
+                return new UnFreezeCardResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = $"An error occurred while unfreezing the card: {ex.Message}"
+                };
+            }
+        }
+
         /// <summary>
         /// Uses the existing getbyaccountnumber endpoint to obtain customerID.
         /// </summary>
-      
+
 
         private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
         {
@@ -715,6 +854,47 @@ namespace USSDMiddleware.Infrastructure.Providers
                 return customerIdProp2.GetString();
 
             return null;
+        }
+
+        private async Task<string?> ResolveCardIdAsync(string accountNumber, string? serialNo, CancellationToken cancellationToken)
+        {
+            var customerId = await GetCustomerIdByAccountNumberAsync(accountNumber, cancellationToken);
+            if (string.IsNullOrWhiteSpace(customerId))
+                return null;
+
+            var token = await GetAccessTokenAsync(cancellationToken);
+            var reference = Guid.NewGuid().ToString("N")[..20];
+            var url = $"/api/Card/v1/Interswitch/GetCardAccountByCustomerId?customerId={customerId}";
+
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Get, url);
+            httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
+
+            using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            var udaraResponse = System.Text.Json.JsonSerializer
+                .Deserialize<UdaraGetCardAccountResponseModel>(body, JsonOptions);
+
+            if (udaraResponse?.Data?.Data is null || udaraResponse.Data.Data.Count == 0)
+                return null;
+
+            // Prefer match by serial number if provided
+            if (!string.IsNullOrWhiteSpace(serialNo))
+            {
+                var bySerial = udaraResponse.Data.Data
+                    .FirstOrDefault(x => string.Equals(x.Card?.SerialNumber, serialNo, StringComparison.OrdinalIgnoreCase));
+
+                if (bySerial != null && !string.IsNullOrWhiteSpace(bySerial.CardId))
+                    return bySerial.CardId;
+            }
+
+            // Fallback: match by account number
+            var byAccount = udaraResponse.Data.Data
+                .FirstOrDefault(x => string.Equals(x.AccountNumber, accountNumber, StringComparison.OrdinalIgnoreCase));
+
+            return byAccount?.CardId
+                ?? udaraResponse.Data.Data.FirstOrDefault()?.CardId;
         }
     }
 }
