@@ -507,6 +507,58 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
+        public async Task<RequeryResponse> StatusQuery(ReQueryRequest model, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(model?.RetrievalReference))
+                {
+                    return new RequeryResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "Retrieval reference is required.",
+                        Status = "Failed"
+                    };
+                }
+
+                var token = await GetAccessTokenAsync(cancellationToken);
+                var reference = Guid.NewGuid().ToString("N")[..20];
+
+                // transactionRef = value returned as InstrumentNumber / reference from the transfer
+                // apiRequestRef  = the request-reference you sent when doing the original transfer
+                var url = $"/api/Transfer/v1/TSQ?transactionRef={Uri.EscapeDataString(model.RetrievalReference)}";
+
+                // If you also stored the original request-reference, append it:
+                // url += $"&apiRequestRef={Uri.EscapeDataString(originalRequestRef)}";
+
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Get, url);
+                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
+
+                _log.LogInformation("StatusQuery. RetrievalReference: {Ref}", model.RetrievalReference);
+
+                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+                _log.LogInformation("StatusQuery response: {StatusCode} {Body}", response.StatusCode, body);
+
+                var udaraResponse = System.Text.Json.JsonSerializer
+                    .Deserialize<UdaraTsqResponseModel>(body, JsonOptions);
+
+                return _mapper.MapToRequeryResponse(udaraResponse);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _log.LogError(ex, "Requery was unsuccessful");
+                return new RequeryResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Requery Failed",
+                    Status = "Failed"
+                };
+            }
+        }
+
         private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
         {
             if (!string.IsNullOrEmpty(_cachedToken) &&

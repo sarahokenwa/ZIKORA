@@ -400,5 +400,35 @@ namespace USSDMiddleware.Core.Models.V2.Mapper
             };
         }
 
+        public RequeryResponse MapToRequeryResponse(UdaraTsqResponseModel? source)
+        {
+            if (source is null)
+            {
+                return new RequeryResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Requery Failed",
+                    Status = "Failed"
+                };
+            }
+
+            var processingStatus = source.Data?.ProcessingStatus ?? string.Empty;
+
+            // Only "Processed" means the transfer is confirmed successful
+            var isSuccessful = source.Status &&
+                               processingStatus.Equals("Processed", StringComparison.OrdinalIgnoreCase);
+
+            return new RequeryResponse
+            {
+                IsSuccessful = isSuccessful,
+                ResponseMessage = !string.IsNullOrWhiteSpace(source.Data?.ResponseMessage)
+                    ? source.Data.ResponseMessage
+                    : source.Message,
+                ResponseCode = source.Data?.ResponseCode,          // for compatibility 
+                Reference = source.Data?.TransactionReference,
+                Status = processingStatus                          //  real status
+            };
+        }
+
     }
 }
