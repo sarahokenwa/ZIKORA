@@ -55,14 +55,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             {
                 if (string.IsNullOrWhiteSpace(req?.BVN))
                 {
-                    return new AccountCreationResponse(
-                        reference: _mapper.GetReference(req),
-                        customerId: null,
-                        accountNumber: null,
-                        message: "BVN is required.");
+                    return new AccountCreationResponse(reference: _mapper.GetReference(req), customerId: null, accountNumber: null, message: "BVN is required.");
                 }
 
-                // 1. Reuse existing BVN endpoint
                 var bvnInfo = await GetBvnInfo(req.BVN, req.PhoneNo, cancellationToken);
 
                 if (!bvnInfo.RequestStatus || !bvnInfo.isBvnValid || bvnInfo.bvnDetails is null)
@@ -74,16 +69,13 @@ namespace USSDMiddleware.Infrastructure.Providers
                         message: bvnInfo.ResponseMessage ?? "BVN validation failed.");
                 }
 
-                // 2. Map request + BVN details → createcustomeraccount payload
                 var reference = _mapper.GetReference(req);
                 var payload = _mapper.MapToCreateCustomerAccountRequest(req, bvnInfo.bvnDetails);
                 var fullName = payload.AccountName;
 
-                // 3. Call createcustomeraccount
                 var token = await GetAccessTokenAsync(cancellationToken);
 
-                using var httpRequest = new HttpRequestMessage(
-                    HttpMethod.Post, "/api/account/v1/createcustomeraccount");
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/account/v1/createcustomeraccount");
 
                 httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);

@@ -25,9 +25,7 @@ namespace USSDMiddleware.Core.Models.V2.Mapper
             var lastName = !string.IsNullOrWhiteSpace(bvnData.LastName) ? bvnData.LastName : source.LastName;
             var otherNames = !string.IsNullOrWhiteSpace(bvnData.OtherNames) ? bvnData.OtherNames : source.OtherNames;
 
-            var accountName = !string.IsNullOrWhiteSpace(source.AccountName)
-                ? source.AccountName
-                : $"{firstName} {lastName}".Trim();
+            var accountName = !string.IsNullOrWhiteSpace(source.AccountName) ? source.AccountName : $"{firstName} {lastName}".Trim();
 
             string? dob = null;
             if (!string.IsNullOrWhiteSpace(bvnData.DOB) && DateTime.TryParse(bvnData.DOB, out var bvnDob))
@@ -37,9 +35,7 @@ namespace USSDMiddleware.Core.Models.V2.Mapper
 
             return new UdaraCreateCustomerAccountRequest
             {
-                ReferenceNumber = !string.IsNullOrWhiteSpace(source.AccountOpeningTrackingRef)
-                    ? source.AccountOpeningTrackingRef
-                    : source.TransactionTrackingRef,
+                ReferenceNumber = !string.IsNullOrWhiteSpace(source.AccountOpeningTrackingRef) ? source.AccountOpeningTrackingRef : source.TransactionTrackingRef,
 
                 FirstName = firstName ?? string.Empty,
                 LastName = lastName ?? string.Empty,
