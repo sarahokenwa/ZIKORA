@@ -79,7 +79,13 @@ namespace USSDMiddleware.Core.Managers
                 byte[] salt = Utility.GetSalt();
                 var configuration = new ConfigurationBuilder().Build();
                 var model = BuildUtil.BuildAccountCreationRequest(validationLog, configuration);
-                model.Gender = request.Gender; model.Email = validationLog.Email; model.AccountOfficerCode = _configuration["ApiOptions:Zikora:AccountOfficerCode"]; model.ProductCode = _configuration["ApiOptions:Zikora:ProductCode"];
+                //model.Gender = request.Gender; model.Email = validationLog.Email; model.AccountOfficerCode = _configuration["ApiOptions:Zikora:AccountOfficerCode"]; model.ProductCode = _configuration["ApiOptions:Zikora:ProductCode"];
+
+                model.Gender = request.Gender;
+                model.Email = validationLog.Email;
+                model.AccountOfficerCode = _configuration["Udara:DefaultAccountOfficerStaffId"];
+                model.ProductCode = _configuration["Udara:DefaultProductCode"];
+                model.AccountTier = _configuration["Udara:DefaultAccountTier"] ?? model.AccountTier;
 
                 AccountCreationResponse response = await provider.CreateAccount(model);
                 if (response.Message != null && response.Message.Contains("BVN Error. Customer BVN must be unique; the BVN you entered already exist."))
@@ -103,7 +109,7 @@ namespace USSDMiddleware.Core.Managers
                       .With(u => u.Address = "NA")
                     .Build());
 
-                return new CreateAccountResponse(request.ValidationReference, validationLog.PhoneNumber, createdUser.Id);
+                return new CreateAccountResponse(request.ValidationReference, validationLog.PhoneNumber, createdUser.Id, "Account created successfully.");
             }
             catch (Exception ex)
             {

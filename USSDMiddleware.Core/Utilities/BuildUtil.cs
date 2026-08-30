@@ -20,7 +20,8 @@ public class BuildUtil
         return Builder<AccountCreationRequest>.CreateNew()
             .With(a => a.AccountOpeningTrackingRef = Guid.NewGuid().ToString())
             .With(a => a.TransactionTrackingRef = Guid.NewGuid().ToString())
-            .With(a => a.ProductCode = configuration["ApiOptions:Zikora:ProductCode"])
+            .With(a => a.ProductCode = configuration["Udara:DefaultProductCode"])
+            //.With(a => a.ProductCode = configuration["ApiOptions:Zikora:ProductCode"])
             .With(a => a.LastName = validationLog.LastName)
             .With(a => a.OtherNames = validationLog.OtherNames)
             .With(a => a.BVN = validationLog.Bvn)
@@ -28,9 +29,11 @@ public class BuildUtil
             .With(a => a.PhoneNo = validationLog.PhoneNumber)
             .With(a => a.Gender = 0)
             .With(a => a.DateOfBirth = validationLog.Dob)
-            .With(a => a.AccountOfficerCode = configuration["ApiOptions:Zikora:ProductCode"])
+            .With(a => a.AccountOfficerCode = configuration["Udara:DefaultAccountOfficerStaffId"])
+            //.With(a => a.AccountOfficerCode = configuration["ApiOptions:Zikora:ProductCode"])
             .With(a => a.Email = "")
-            .With(a => a.AccountTier = "1")
+            .With(a => a.AccountTier = configuration["Udara:DefaultAccountTier"] ?? "1")
+            //.With(a => a.AccountTier = "1")
             .Build();
     }
 }

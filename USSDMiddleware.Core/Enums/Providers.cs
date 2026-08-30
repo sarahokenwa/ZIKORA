@@ -9,7 +9,6 @@ namespace USSDMiddleware.Core.Enums
     public enum Providers
     {
         ZIKORA,
-        PARKWAY,
-        UDARA
+        PARKWAY
     }
 }

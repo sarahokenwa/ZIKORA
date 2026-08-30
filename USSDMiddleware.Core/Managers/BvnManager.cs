@@ -1,4 +1,6 @@
 using FizzWare.NBuilder;
+using Hangfire.Logging;
+using Microsoft.Extensions.Logging;
 using USSDMiddleware.Core.Entities;
 using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Models;

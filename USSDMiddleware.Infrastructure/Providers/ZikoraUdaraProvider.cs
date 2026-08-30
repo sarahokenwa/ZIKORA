@@ -5,6 +5,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using USSDMiddleware.Core.Exceptions;
+using USSDMiddleware.Core.Interfaces.Managers;
 using USSDMiddleware.Core.Interfaces.Providers;
 using USSDMiddleware.Core.Models;
 using USSDMiddleware.Core.Models.Accounts;
@@ -17,7 +18,7 @@ using USSDMiddleware.Core.Models.V2.Response;
 
 namespace USSDMiddleware.Infrastructure.Providers
 {
-    public class ZikoraUdaraProvider 
+    public class ZikoraUdaraProvider : IUssdProvider
     {
         private readonly HttpClient _httpClient;
         private readonly UdaraOptions _options;
@@ -34,21 +35,21 @@ namespace USSDMiddleware.Infrastructure.Providers
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
 
-        public Core.Enums.Providers ProviderType => Core.Enums.Providers.UDARA;
+        public Core.Enums.Providers ProviderType => Core.Enums.Providers.ZIKORA;
 
 
-        public ZikoraUdaraProvider(HttpClient httpClient,
+        public ZikoraUdaraProvider(IHttpClientFactory httpClientFactory,
         IOptions<UdaraOptions> options,
         UdaraMapper mapper,
         ILogger<ZikoraUdaraProvider> log)
         {
-            _httpClient = httpClient;
+            _httpClient = httpClientFactory.CreateClient("Udara");
             _options = options.Value;
             _mapper = mapper;
             _log = log;
         }
 
-        public async Task<AccountCreationResponse> CreateAccount(AccountCreationRequest req, CancellationToken cancellationToken = default)
+        public async Task<AccountCreationResponse> CreateAccount(AccountCreationRequest req)
         {
             try
             {
@@ -57,7 +58,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     return new AccountCreationResponse(reference: _mapper.GetReference(req), customerId: null, accountNumber: null, message: "BVN is required.");
                 }
 
-                var bvnInfo = await GetBvnInfo(req.BVN, req.PhoneNo, cancellationToken);
+                var bvnInfo = await GetBvnInfo(req.BVN, req.PhoneNo);
 
                 if (!bvnInfo.RequestStatus || !bvnInfo.isBvnValid || bvnInfo.bvnDetails is null)
                 {
@@ -72,7 +73,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var payload = _mapper.MapToCreateCustomerAccountRequest(req, bvnInfo.bvnDetails);
                 var fullName = payload.AccountName;
 
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/account/v1/createcustomeraccount");
 
@@ -82,8 +83,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Creating customer + account. Reference: {Reference}, BVN: {Bvn}", reference, MaskBvn(req.BVN));
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("CreateCustomerAccount response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -102,8 +103,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-
-        public async Task<BvnInfoResponse> GetBvnInfo(string bvn, string phoneNo, CancellationToken cancellationToken = default)
+        public async Task<BvnInfoResponse> GetBvnInfo(string bvn, string phoneNo)
         {
             try
             {
@@ -118,7 +118,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 }
 
                 var payload = _mapper.MapToValidateBvnRequest(bvn);
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/Operations/v1/KYC/ValidateBVN");
@@ -128,8 +128,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Validating BVN: {Bvn}", MaskBvn(bvn));
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("ValidateBVN response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -151,7 +151,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        public async Task<BalanceEnquiryResponse> CheckAccountBalance(BalanceEnquiryRequest model, CancellationToken cancellationToken = default)
+        public async Task<BalanceEnquiryResponse> CheckAccountBalance(BalanceEnquiryRequest model)
         {
             try
             {
@@ -163,7 +163,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     };
                 }
 
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
                 var url = $"/api/account/v1/getaccountbalancebyaccountnumber?AccountNumber={model.AccountNumber}";
@@ -174,8 +174,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Checking account balance. AccountNumber: {AccountNumber}", model.AccountNumber);
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("Balance enquiry response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -193,7 +193,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        public async Task<List<GetAccountResponse>> GetAccountsByPhoneNumber(string phoneNumber, CancellationToken cancellationToken = default)
+        public async Task<List<GetAccountResponse>> GetAccountsByPhoneNumber(string phoneNumber)
         {
             try
             {
@@ -205,7 +205,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     };
                 }
 
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
                 var url = $"/api/account/v1/GetAccountsByPhoneNumber?PhoneNumber={phoneNumber}";
@@ -216,8 +216,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Getting accounts by phone number: {PhoneNumber}", phoneNumber);
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("GetAccountsByPhoneNumber response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -238,7 +238,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        public async Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber, CancellationToken cancellationToken = default)
+        public async Task<GetUserByAccountNumberResponse> GetUserByAccountNumber(string accountNumber)
         {
             try
             {
@@ -251,7 +251,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     };
                 }
 
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
                 var url = $"/api/account/v1/getbyaccountnumber?AccountNumber={accountNumber}";
@@ -262,8 +262,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Getting user by account number: {AccountNumber}", accountNumber);
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("GetUserByAccountNumber response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -282,7 +282,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        public async Task<BlockAccountResponse> BlockAccount(BlockAccountRequest request, CancellationToken cancellationToken = default)
+        public async Task<BlockAccountResponse> BlockAccount(BlockAccountRequest request)
         {
             try
             {
@@ -297,7 +297,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 }
 
                 var payload = _mapper.MapToDeactivateAccountRequest(request);
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/account/v1/deactivate");
@@ -307,8 +307,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Blocking account: {AccountNumber}", request.AccountNo);
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("Block account response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -328,7 +328,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        public async Task<BlockAccountResponse> DeactivatePND(BlockAccountRequest request, CancellationToken cancellationToken = default)
+        public async Task<BlockAccountResponse> DeactivatePND(BlockAccountRequest request)
         {
             try
             {
@@ -343,7 +343,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 }
 
                 var payload = _mapper.MapToRemovePndRequest(request);
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Put, "/api/account/v1/removepnd");
@@ -353,8 +353,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Deactivating PND for account: {AccountNumber}", request.AccountNo);
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("DeactivatePND response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -382,7 +382,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        public async Task<DebitCustomerAccountResponse> DebitCustomerAccount(DebitCustomerAccountRequest model, CancellationToken cancellationToken = default)
+        public async Task<DebitCustomerAccountResponse> DebitCustomerAccount(DebitCustomerAccountRequest model)
         {
             try
             {
@@ -397,7 +397,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 }
 
                 var payload = _mapper.MapToDebitPostingRequest(model);
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = model.RetrievalReference ?? Guid.NewGuid().ToString("N")[..20];
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/postings/v1/post");
@@ -407,8 +407,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Debiting account: {AccountNumber}, Amount: {Amount}", model.AccountNumber, model.Amount);
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("DebitCustomerAccount response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -434,7 +434,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        public async Task<CardResponse> CardRequest(CardRequestExtension request, CancellationToken cancellationToken = default)
+        public async Task<CardResponse> CardRequest(CardRequestExtension request)
         {
             try
             {
@@ -442,7 +442,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 //  an endpoint that creates the card record is needed
                 //It  returns a cardId, using AccountNumber, NameOnCard, BIN, etc.
                 // -------------------------------------------------------
-                var cardId = await CreateCardRecordAsync(request, cancellationToken);
+                var cardId = await CreateCardRecordAsync(request);
                 if (string.IsNullOrWhiteSpace(cardId))
                 {
                     return new CardResponse
@@ -453,7 +453,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 }
 
                 var payload = _mapper.MapToIssueCardRequest(cardId);
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
                 using var httpRequest = new HttpRequestMessage(
@@ -465,8 +465,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Issuing card. CardId: {CardId}", cardId);
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("IssueCard response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -486,7 +486,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        public async Task<RequeryResponse> StatusQuery(ReQueryRequest model, CancellationToken cancellationToken = default)
+        public async Task<RequeryResponse> StatusQuery(ReQueryRequest model)
         {
             try
             {
@@ -500,7 +500,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     };
                 }
 
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
                 var url = $"/api/Transfer/v1/TSQ?transactionRef={Uri.EscapeDataString(model.RetrievalReference)}";
@@ -511,8 +511,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("StatusQuery. RetrievalReference: {Ref}", model.RetrievalReference);
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("StatusQuery response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -532,7 +532,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        public async Task<GetCustomerCardResponse> GetCustomerCards(GetCustomerCardRequest request, CancellationToken cancellationToken = default)
+        public async Task<GetCustomerCardResponse> GetCustomerCards(GetCustomerCardRequest request)
         {
             try
             {
@@ -550,7 +550,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var customerId = request.CustomerId;
                 if (string.IsNullOrWhiteSpace(customerId))
                 {
-                    customerId = await GetCustomerIdByAccountNumberAsync(request.AccountNo, cancellationToken);
+                    customerId = await GetCustomerIdByAccountNumberAsync(request.AccountNo);
                 }
 
                 if (string.IsNullOrWhiteSpace(customerId))
@@ -563,7 +563,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     };
                 }
 
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = Guid.NewGuid().ToString("N")[..20];
                 var url = $"/api/Card/v1/Interswitch/GetCardAccountByCustomerId?customerId={customerId}";
 
@@ -573,8 +573,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("GetCustomerCards. AccountNo: {AccountNo}, CustomerId: {CustomerId}", request.AccountNo, customerId);
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("GetCustomerCards response: {StatusCode} {Body}",
                     response.StatusCode, body);
@@ -597,7 +597,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 throw new OperationFailedException(ex.Message, ex);
             }
         }
-        public async Task<FreezeCardResponse> FreezeCard(FreezeCardRequest request, CancellationToken cancellationToken = default)
+        public async Task<FreezeCardResponse> FreezeCard(FreezeCardRequest request)
         {
             try
             {
@@ -610,7 +610,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     };
                 }
 
-                var cardId = await ResolveCardIdAsync(request.AccountNumber, request.SerialNo, cancellationToken);
+                var cardId = await ResolveCardIdAsync(request.AccountNumber, request.SerialNo);
                 if (string.IsNullOrWhiteSpace(cardId))
                 {
                     return new FreezeCardResponse
@@ -625,7 +625,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     status: 1, // Block = Freeze
                     request.Reason);
 
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = request.Reference ?? Guid.NewGuid().ToString("N")[..20];
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Put, "/api/Card/v1/Interswitch/UpdateCardStatus");
@@ -636,8 +636,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Freezing card. CardId: {CardId}, Account: {Account}", cardId, request.AccountNumber);
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("FreezeCard response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -656,7 +656,7 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        public async Task<UnFreezeCardResponse> UnFreezeCard(UnFreezeCardRequest request, CancellationToken cancellationToken = default)
+        public async Task<UnFreezeCardResponse> UnFreezeCard(UnFreezeCardRequest request)
         {
             try
             {
@@ -669,7 +669,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     };
                 }
 
-                var cardId = await ResolveCardIdAsync(request.AccountNumber, request.SerialNo, cancellationToken);
+                var cardId = await ResolveCardIdAsync(request.AccountNumber, request.SerialNo);
                 if (string.IsNullOrWhiteSpace(cardId))
                 {
                     return new UnFreezeCardResponse
@@ -684,7 +684,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                     status: 2, // Unblock = Unfreeze
                     request.Reason);
 
-                var token = await GetAccessTokenAsync(cancellationToken);
+                var token = await GetAccessTokenAsync();
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Put, "/api/Card/v1/Interswitch/UpdateCardStatus");
@@ -695,8 +695,8 @@ namespace USSDMiddleware.Infrastructure.Providers
 
                 _log.LogInformation("Unfreezing card. CardId: {CardId}, Account: {Account}", cardId, request.AccountNumber);
 
-                using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
 
                 _log.LogInformation("UnFreezeCard response: {StatusCode} {Body}", response.StatusCode, body);
 
@@ -715,7 +715,58 @@ namespace USSDMiddleware.Infrastructure.Providers
             }
         }
 
-        private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
+        public async Task<string> GetProviderId(IProviderManager providerManager)
+        {
+            var provider = await providerManager.GetProviderByName(Core.Enums.Providers.ZIKORA.ToString());
+            return provider.Id;
+        }
+
+        public async Task<IntraBankTransferResponse> IntraBankTransfer(IntraBankTransferRequest model)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(model?.FromAccountNumber) ||
+                    string.IsNullOrWhiteSpace(model?.ToAccountNumber))
+                {
+                    return new IntraBankTransferResponse
+                    {
+                        IsSuccessful = false,
+                        ResponseMessage = "From and To account numbers are required."
+                    };
+                }
+
+                var payload = _mapper.MapToLocalFundTransferRequest(model);
+                var token = await GetAccessTokenAsync();
+                var reference = model.RetrievalReference ?? Guid.NewGuid().ToString("N")[..20];
+
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/transfer/v1/localfundtransfer");
+
+                httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
+                httpRequest.Content = JsonContent.Create(payload, options: JsonOptions);
+
+                _log.LogInformation("IntraBankTransfer. From: {From}, To: {To}, Amount: {Amount}", model.FromAccountNumber, model.ToAccountNumber, model.Amount);
+
+                using var response = await _httpClient.SendAsync(httpRequest);
+                var body = await response.Content.ReadAsStringAsync();
+
+                _log.LogInformation("IntraBankTransfer response: {StatusCode} {Body}", response.StatusCode, body);
+
+                var udaraResponse = System.Text.Json.JsonSerializer.Deserialize<UdaraLocalFundTransferResponseModel>(body, JsonOptions);
+
+                return _mapper.MapToIntraBankTransferResponse(udaraResponse, reference);
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "Error performing intra-bank transfer");
+                return new IntraBankTransferResponse
+                {
+                    IsSuccessful = false,
+                    ResponseMessage = "Intrabank transfer failed."
+                };
+            }
+        }
+        private async Task<string> GetAccessTokenAsync()
         {
             if (!string.IsNullOrEmpty(_cachedToken) &&
                 DateTimeOffset.UtcNow < _tokenExpiresAt.AddMinutes(-1))
@@ -732,8 +783,8 @@ namespace USSDMiddleware.Infrastructure.Providers
             using var request = new HttpRequestMessage(HttpMethod.Post, _options.TokenEndpoint);
             request.Content = JsonContent.Create(tokenRequest);
 
-            using var response = await _httpClient.SendAsync(request, cancellationToken);
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var response = await _httpClient.SendAsync(request);
+            var content = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
             {
@@ -756,7 +807,7 @@ namespace USSDMiddleware.Infrastructure.Providers
         /// <summary>
         /// This should return the cardId required by IssueCard.
         /// </summary>
-        private Task<string?> CreateCardRecordAsync(CardRequestExtension request, CancellationToken cancellationToken)
+        private Task<string?> CreateCardRecordAsync(CardRequestExtension request)
         {
             _log.LogWarning(
                 "CreateCardRecordAsync is not implemented. " +
@@ -765,9 +816,9 @@ namespace USSDMiddleware.Infrastructure.Providers
             return Task.FromResult<string?>(null);
         }
 
-        private async Task<string?> GetCustomerIdByAccountNumberAsync(string accountNumber, CancellationToken cancellationToken)
+        private async Task<string?> GetCustomerIdByAccountNumberAsync(string accountNumber)
         {
-            var token = await GetAccessTokenAsync(cancellationToken);
+            var token = await GetAccessTokenAsync();
             var reference = Guid.NewGuid().ToString("N")[..20];
             var url = $"/api/account/v1/getbyaccountnumber?AccountNumber={accountNumber}";
 
@@ -775,8 +826,8 @@ namespace USSDMiddleware.Infrastructure.Providers
             httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
 
-            using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var response = await _httpClient.SendAsync(httpRequest);
+            var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
                 return null;
@@ -799,13 +850,13 @@ namespace USSDMiddleware.Infrastructure.Providers
             return null;
         }
 
-        private async Task<string?> ResolveCardIdAsync(string accountNumber, string? serialNo, CancellationToken cancellationToken)
+        private async Task<string?> ResolveCardIdAsync(string accountNumber, string? serialNo)
         {
-            var customerId = await GetCustomerIdByAccountNumberAsync(accountNumber, cancellationToken);
+            var customerId = await GetCustomerIdByAccountNumberAsync(accountNumber);
             if (string.IsNullOrWhiteSpace(customerId))
                 return null;
 
-            var token = await GetAccessTokenAsync(cancellationToken);
+            var token = await GetAccessTokenAsync();
             var reference = Guid.NewGuid().ToString("N")[..20];
             var url = $"/api/Card/v1/Interswitch/GetCardAccountByCustomerId?customerId={customerId}";
 
@@ -813,8 +864,8 @@ namespace USSDMiddleware.Infrastructure.Providers
             httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
 
-            using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var response = await _httpClient.SendAsync(httpRequest);
+            var body = await response.Content.ReadAsStringAsync();
 
             var udaraResponse = System.Text.Json.JsonSerializer
                 .Deserialize<UdaraGetCardAccountResponseModel>(body, JsonOptions);
@@ -849,5 +900,54 @@ namespace USSDMiddleware.Infrastructure.Providers
                 ? "****"
                 : new string('*', bvn.Length - 4) + bvn[^4..];
         }
+
+        /////////////////This isn't used by Zikora, but is here for reference./////////////////////
+        public Task<PhoneValidationResponse> ValidatePhone(PhoneValidationRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.PhoneNumber))
+            {
+                return Task.FromResult(new PhoneValidationResponse(
+                    status: false,
+                    canRegister: false,
+                    message: "Phone number is required."));
+            }
+
+            return Task.FromResult(new PhoneValidationResponse(
+                status: true,
+                canRegister: true,
+                message: "Successful"));
+        }
+
+        public Task<GetUserByPhoneNumberResponse> GetUserByPhoneNumber(string phoneNumber)
+        {
+            return Task.FromResult(new GetUserByPhoneNumberResponse
+            {
+                PhoneNumber = phoneNumber,
+                DateOfBirth = null,
+                BankVerificationNumber = null,
+                Email = null
+            });
+        }
+
+        public Task<BlockAccountResponse> VerifyPNDStatus(BlockAccountRequest request)
+        {
+            return Task.FromResult(new BlockAccountResponse
+            {
+                RequestStatus = false,
+                ResponseDescription = "PND status verification is not supported for UDARA provider.",
+                ResponseStatus = "Failed"
+            });
+        }
+
+        public Task<SMSResponse> SendSMS(SMSRequest request)
+        {
+            return Task.FromResult(new SMSResponse
+            {
+                IsSuccess = false,
+                ResponseMessage = "SMS is not handled by the UDARA provider."
+            });
+        }
+
+
     }
 }

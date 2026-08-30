@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using System.Net.Http.Headers;
 using USSDMiddleware.Core.Interfaces.Component;
 using USSDMiddleware.Core.Interfaces.ExternalServices;
@@ -52,14 +53,31 @@ namespace USSDMiddleware.Api.Extensions
             //Third party service
             #region service
             services.AddHttpClient<IHttpService, HttpServiceUtil>();
-            services.AddScoped<IUssdProvider, ZikoraBankOneProvider>();
+            //services.AddScoped<IUssdProvider, ZikoraBankOneProvider>();
             services.AddScoped<ICyberPayProvider, CyberPayProvider>();
             services.AddScoped<UssdProviderSelector>();
             services.AddScoped<IPayOutService, PayOutService>();
             services.AddScoped<IBackgroundService, HangfireBackgroundService>();
-          //  services.AddScoped<IUssdProvider, ZikoraUdaraProvider>();
 
-            // services.AddSingleton<ILogService, SerilogService>();
+            services.Configure<UdaraOptions>(configuration.GetSection("Udara"));
+            services.AddSingleton<UdaraMapper>();
+
+            var udaraBaseUrl = configuration["Udara:BaseUrl"];
+            if (string.IsNullOrWhiteSpace(udaraBaseUrl))
+            {
+                throw new InvalidOperationException(
+                    "Udara:BaseUrl is missing. Check appsettings / appsettings.Development.json");
+            }
+
+            services.AddHttpClient("Udara", client =>
+            {
+                client.BaseAddress = new Uri(udaraBaseUrl.TrimEnd('/') + "/");
+                client.DefaultRequestHeaders.Accept.Add(
+                    new MediaTypeWithQualityHeaderValue("application/json"));
+            });
+
+            services.AddScoped<IUssdProvider, ZikoraUdaraProvider>();
+
 
             #endregion service
 
@@ -88,16 +106,6 @@ namespace USSDMiddleware.Api.Extensions
 
             var hostEnvironment = (IWebHostEnvironment)serviceProvider.GetService(typeof(IWebHostEnvironment));
             services.AddDistributedMemoryCache();
-
-            services.Configure<UdaraOptions>(configuration.GetSection(UdaraOptions.SectionName));
-
-            services.AddSingleton<UdaraMapper>();
-
-            services.AddHttpClient<ZikoraUdaraProvider>(client =>
-            {
-                client.BaseAddress = new Uri(configuration["Udara:BaseUrl"]!);
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            });
         }
 
         public static T ToModel<T>(this T value, string val)
