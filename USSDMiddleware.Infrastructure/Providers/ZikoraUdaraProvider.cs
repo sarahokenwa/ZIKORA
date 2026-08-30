@@ -300,7 +300,7 @@ namespace USSDMiddleware.Infrastructure.Providers
                 var token = await GetAccessTokenAsync();
                 var reference = Guid.NewGuid().ToString("N")[..20];
 
-                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/account/v1/deactivate");
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Put, "/api/account/v1/deactivate");
                 httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 httpRequest.Headers.TryAddWithoutValidation("request-reference", reference);
                 httpRequest.Content = JsonContent.Create(payload, options: JsonOptions);
